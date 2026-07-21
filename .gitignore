@@ -1,0 +1,15 @@
+mio.txt
+build/
+cmake-build-*/
+*.o
+*.obj
+*.out
+*.so
+*.a
+*.cubin
+*.ptx
+*.fatbin
+
+.vscode/
+.idea/
+*~
