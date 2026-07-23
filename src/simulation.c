@@ -19,20 +19,22 @@ Simulation *simulation_create(index_t n, real dt, real total_time){
     s->total_time = total_time;
     s->current_time = 0.0;
     s->integrator = INTEGRATOR_EULER;
+    s->force_func = forces_compute;
 
     return s;
 }
 
 void simulation_step(Simulation *s){
+    ForceFunc f = s->force_func;
     switch(s->integrator){
         case INTEGRATOR_EULER:
-            integrator_step(s->universe, s->dt, forces_compute);
+            integrator_step(s->universe, s->dt, f);
             break;
         case INTEGRATOR_EULER_SEMIIMPLICIT:
-            integrator_step_semiimplicit(s->universe, s->dt, forces_compute);
+            integrator_step_semiimplicit(s->universe, s->dt, f);
             break;
         case INTEGRATOR_VERLET:
-            integrator_step_verlet(s->universe, s->dt, forces_compute);
+            integrator_step_verlet(s->universe, s->dt, f);
             break;
     }
     s->current_time += s->dt;

@@ -1,18 +1,18 @@
 #include "nbody/simulation.h"
+#include "nbody/forces.h"
 #include "nbody/constants.h"
 #include <stdio.h>
 
-/* configura un sistema sun-earth en la posición i del vector de partículas */
-static void setup_sun_earth(Simulation *s){
-    s->universe->particles[0].mass = 1.989e30;
-    s->universe->particles[0].position = (Vec3){0.0, 0.0, 0.0};
-    s->universe->particles[0].velocity = (Vec3){0.0, 0.0, 0.0};
+static void setup_sun_earth(Universe *u){
+    u->particles[0].mass = 1.989e30;
+    u->particles[0].position = (Vec3){0.0, 0.0, 0.0};
+    u->particles[0].velocity = (Vec3){0.0, 0.0, 0.0};
 
     real r = 1.496e11;
     real v = sqrt(G * 1.989e30 / r);
-    s->universe->particles[1].mass = 5.972e24;
-    s->universe->particles[1].position = (Vec3){r, 0.0, 0.0};
-    s->universe->particles[1].velocity = (Vec3){0.0, v, 0.0};
+    u->particles[1].mass = 5.972e24;
+    u->particles[1].position = (Vec3){r, 0.0, 0.0};
+    u->particles[1].velocity = (Vec3){0.0, v, 0.0};
 }
 
 static void run_simulation(const char *name, IntegratorType integrator,
@@ -23,7 +23,7 @@ static void run_simulation(const char *name, IntegratorType integrator,
         return;
     }
 
-    setup_sun_earth(s);
+    setup_sun_earth(s->universe);
     s->integrator = integrator;
 
     index_t steps = (index_t)(total_time / dt);
@@ -53,6 +53,12 @@ static void run_simulation(const char *name, IntegratorType integrator,
 }
 
 int main(void){
+#ifdef NBODY_GPU
+    printf("[gpu backend]\n\n");
+#else
+    printf("[cpu backend]\n\n");
+#endif
+
     real dt = 3600.0;
     real total_time = 365.25 * 24.0 * 3600.0;
 

@@ -1,11 +1,9 @@
 #include "nbody/simulation.h"
 #include "nbody/integrator.h"
 #include "nbody/forces.h"
-#include "nbody/forces_gpu.h"
 #include "nbody/constants.h"
 #include <stdio.h>
 #include <time.h>
-#include <cuda_runtime.h>
 
 static double time_diff(struct timespec start, struct timespec end){
     return (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) * 1e-9;
@@ -27,10 +25,6 @@ static void init_random_particles(Simulation *s){
     }
 }
 
-static void forces_gpu_compute_wrapped(Universe *u){
-    forces_gpu_compute(u);
-}
-
 static void benchmark_n(index_t n, index_t steps){
     Simulation *s = simulation_create(n, 0.01, (real)steps * 0.01);
     if(!s){
@@ -39,15 +33,16 @@ static void benchmark_n(index_t n, index_t steps){
     }
 
     init_random_particles(s);
+    s->force_func = forces_compute;
 
-    /* warmup — una iteración para inicializar GPU */
-    integrator_step(s->universe, s->dt, forces_gpu_compute_wrapped);
+    /* warmup — inicializar GPU */
+    simulation_step(s);
 
     struct timespec t_start, t_end;
     clock_gettime(CLOCK_MONOTONIC, &t_start);
 
     for(index_t i = 0; i < steps; i++){
-        integrator_step(s->universe, s->dt, forces_gpu_compute_wrapped);
+        simulation_step(s);
     }
 
     clock_gettime(CLOCK_MONOTONIC, &t_end);
@@ -60,7 +55,6 @@ static void benchmark_n(index_t n, index_t steps){
         elapsed / steps * 1000.0,
         elapsed / (steps * n) * 1e6);
 
-    forces_gpu_free();
     simulation_destroy(s);
 }
 
@@ -71,14 +65,13 @@ static void benchmark_forces_only(index_t n){
     init_random_particles(s);
 
     /* warmup */
-    forces_gpu_compute(s->universe);
+    forces_compute(s->universe);
 
-    /* benchmark solo forces */
     struct timespec t_start, t_end;
     index_t iters = 100;
     clock_gettime(CLOCK_MONOTONIC, &t_start);
     for(index_t i = 0; i < iters; i++){
-        forces_gpu_compute(s->universe);
+        forces_compute(s->universe);
     }
     clock_gettime(CLOCK_MONOTONIC, &t_end);
     double elapsed = time_diff(t_start, t_end);
@@ -88,7 +81,6 @@ static void benchmark_forces_only(index_t n){
         (unsigned long)iters,
         elapsed / iters * 1000.0);
 
-    forces_gpu_free();
     simulation_destroy(s);
 }
 

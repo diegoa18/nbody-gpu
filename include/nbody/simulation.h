@@ -2,6 +2,7 @@
 #define NBODY_SIMULATION_H
 
 #include "universe.h"
+#include "integrator.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +20,7 @@ typedef struct{
     real total_time;
     real current_time;
     IntegratorType integrator;
+    ForceFunc force_func;
 } Simulation;
 
 Simulation *simulation_create(index_t n, real dt, real total_time);

@@ -1,5 +1,4 @@
 #include "nbody/forces.h"
-#include "nbody/forces_gpu.h"
 #include "nbody/constants.h"
 #include <cuda_runtime.h>
 #include <stdlib.h>
@@ -13,11 +12,8 @@
  * cada bloque carga TILE_SIZE partículas a shared memory
  * y computa fuerzas contra sus BLOCK_SIZE hilos
  * reduce global memory reads de N a N/TILE_SIZE por hilo
- *
- * Complejidad sigue siendo O(N²) pero con mejor uso de la memoria
  */
 __global__ void forces_kernel_tiled(double *px, double *py, double *pz,
-                                    double *vx, double *vy, double *vz,
                                     double *ax, double *ay, double *az,
                                     double *mass, index_t n){
     __shared__ double s_px[TILE_SIZE];
@@ -38,10 +34,7 @@ __global__ void forces_kernel_tiled(double *px, double *py, double *pz,
         my_pz = pz[i];
     }
 
-    /* iterar por tiles */
     for(index_t tile = 0; tile < n; tile += TILE_SIZE){
-
-        /* solo threadIdx.x < TILE_SIZE carga el tile */
         index_t tj = tile + threadIdx.x;
         if(threadIdx.x < TILE_SIZE && tj < n){
             s_px[threadIdx.x] = px[tj];
@@ -51,20 +44,17 @@ __global__ void forces_kernel_tiled(double *px, double *py, double *pz,
         }
         __syncthreads();
 
-        /* calcular fuerzas contra el tile */
         index_t tile_len = TILE_SIZE;
         if(tile + tile_len > n) tile_len = n - tile;
 
         for(index_t j = 0; j < tile_len; j++){
-            index_t global_j = tile + j;
-            if(i == global_j) continue;
+            if(i == tile + j) continue;
 
             double dx = s_px[j] - my_px;
             double dy = s_py[j] - my_py;
             double dz = s_pz[j] - my_pz;
 
             double dist2 = dx * dx + dy * dy + dz * dz;
-            /* x * sqrt(x) es más rápido que pow(x, 1.5) */
             double d = sqrt(dist2 + SOFTENING * SOFTENING);
             double s = G * s_mass[j] / (d * d * d);
 
@@ -82,8 +72,9 @@ __global__ void forces_kernel_tiled(double *px, double *py, double *pz,
     }
 }
 
+/* --- estado GPU persistente --- */
+
 static double *d_px, *d_py, *d_pz;
-static double *d_vx, *d_vy, *d_vz;
 static double *d_ax, *d_ay, *d_az;
 static double *d_mass;
 static index_t allocated_n = 0;
@@ -92,10 +83,9 @@ static double *h_px, *h_py, *h_pz;
 static double *h_ax, *h_ay, *h_az;
 static double *h_mass;
 
-void forces_gpu_free(void){
+static void gpu_free(void){
     if(allocated_n == 0) return;
     cudaFree(d_px); cudaFree(d_py); cudaFree(d_pz);
-    cudaFree(d_vx); cudaFree(d_vy); cudaFree(d_vz);
     cudaFree(d_ax); cudaFree(d_ay); cudaFree(d_az);
     cudaFree(d_mass);
     free(h_px); free(h_py); free(h_pz);
@@ -104,16 +94,13 @@ void forces_gpu_free(void){
     allocated_n = 0;
 }
 
-void forces_gpu_init(index_t n){
+static void gpu_init(index_t n){
     if(allocated_n == n) return;
-    if(allocated_n > 0) forces_gpu_free();
+    if(allocated_n > 0) gpu_free();
 
     cudaMalloc(&d_px, n * sizeof(double));
     cudaMalloc(&d_py, n * sizeof(double));
     cudaMalloc(&d_pz, n * sizeof(double));
-    cudaMalloc(&d_vx, n * sizeof(double));
-    cudaMalloc(&d_vy, n * sizeof(double));
-    cudaMalloc(&d_vz, n * sizeof(double));
     cudaMalloc(&d_ax, n * sizeof(double));
     cudaMalloc(&d_ay, n * sizeof(double));
     cudaMalloc(&d_az, n * sizeof(double));
@@ -130,11 +117,17 @@ void forces_gpu_init(index_t n){
     allocated_n = n;
 }
 
-void forces_gpu_compute(Universe *u){
+/*
+ * forces_compute — interfaz única compatible con ForceFunc
+ * misma firma que cpu/forces.c::forces_compute
+ * el integrator no sabe si es CPU o GPU
+ */
+void forces_compute(Universe *u){
     index_t n = u->n;
 
+    /* primera llamada — subir estado completo */
     if(allocated_n == 0){
-        forces_gpu_init(n);
+        gpu_init(n);
 
         for(index_t i = 0; i < n; i++){
             h_px[i] = u->particles[i].position.x;
@@ -149,7 +142,7 @@ void forces_gpu_compute(Universe *u){
         cudaMemcpy(d_mass, h_mass, n * sizeof(double), cudaMemcpyHostToDevice);
     }
 
-    /* subir posiciones actualizadas */
+    /* subir posiciones actualizadas por el integrador */
     for(index_t i = 0; i < n; i++){
         h_px[i] = u->particles[i].position.x;
         h_py[i] = u->particles[i].position.y;
@@ -159,10 +152,9 @@ void forces_gpu_compute(Universe *u){
     cudaMemcpy(d_py, h_py, n * sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_pz, h_pz, n * sizeof(double), cudaMemcpyHostToDevice);
 
-    /* lanzar kernel tiled */
+    /* lanzar kernel */
     index_t blocks = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
     forces_kernel_tiled<<<blocks, BLOCK_SIZE>>>(d_px, d_py, d_pz,
-                                                d_vx, d_vy, d_vz,
                                                 d_ax, d_ay, d_az,
                                                 d_mass, n);
     cudaDeviceSynchronize();
