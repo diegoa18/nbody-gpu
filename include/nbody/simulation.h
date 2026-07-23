@@ -3,6 +3,10 @@
 
 #include "universe.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum{
     INTEGRATOR_EULER,
     INTEGRATOR_EULER_SEMIIMPLICIT,
@@ -26,5 +30,9 @@ real simulation_kinetic_energy(Simulation *s);
 real simulation_potential_energy(Simulation *s);
 real simulation_total_energy(Simulation *s);
 Vec3 simulation_linear_momentum(Simulation *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
