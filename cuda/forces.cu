@@ -2,9 +2,26 @@
 #include "nbody/constants.h"
 #include <cuda_runtime.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define BLOCK_SIZE 256
 #define TILE_SIZE  32
+
+#define CUDA_CHECK(call) do { \
+    cudaError_t err = call; \
+    if(err != cudaSuccess){ \
+        fprintf(stderr, "cuda error: %s at %s:%d\n", \
+                cudaGetErrorString(err), __FILE__, __LINE__); \
+        exit(1); \
+    } \
+} while(0)
+
+#define MALLOC_CHECK(ptr) do { \
+    if(!ptr){ \
+        fprintf(stderr, "malloc failed at %s:%d\n", __FILE__, __LINE__); \
+        exit(1); \
+    } \
+} while(0)
 
 /*
  * kernel con shared memory tiling
@@ -98,21 +115,21 @@ static void gpu_init(index_t n){
     if(allocated_n == n) return;
     if(allocated_n > 0) gpu_free();
 
-    cudaMalloc(&d_px, n * sizeof(double));
-    cudaMalloc(&d_py, n * sizeof(double));
-    cudaMalloc(&d_pz, n * sizeof(double));
-    cudaMalloc(&d_ax, n * sizeof(double));
-    cudaMalloc(&d_ay, n * sizeof(double));
-    cudaMalloc(&d_az, n * sizeof(double));
-    cudaMalloc(&d_mass, n * sizeof(double));
+    CUDA_CHECK(cudaMalloc(&d_px, n * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_py, n * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_pz, n * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_ax, n * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_ay, n * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_az, n * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_mass, n * sizeof(double)));
 
-    h_px = (double*)malloc(n * sizeof(double));
-    h_py = (double*)malloc(n * sizeof(double));
-    h_pz = (double*)malloc(n * sizeof(double));
-    h_ax = (double*)malloc(n * sizeof(double));
-    h_ay = (double*)malloc(n * sizeof(double));
-    h_az = (double*)malloc(n * sizeof(double));
-    h_mass = (double*)malloc(n * sizeof(double));
+    h_px = (double*)malloc(n * sizeof(double)); MALLOC_CHECK(h_px);
+    h_py = (double*)malloc(n * sizeof(double)); MALLOC_CHECK(h_py);
+    h_pz = (double*)malloc(n * sizeof(double)); MALLOC_CHECK(h_pz);
+    h_ax = (double*)malloc(n * sizeof(double)); MALLOC_CHECK(h_ax);
+    h_ay = (double*)malloc(n * sizeof(double)); MALLOC_CHECK(h_ay);
+    h_az = (double*)malloc(n * sizeof(double)); MALLOC_CHECK(h_az);
+    h_mass = (double*)malloc(n * sizeof(double)); MALLOC_CHECK(h_mass);
 
     allocated_n = n;
 }
@@ -136,10 +153,10 @@ void forces_compute(Universe *u){
             h_mass[i] = u->particles[i].mass;
         }
 
-        cudaMemcpy(d_px, h_px, n * sizeof(double), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_py, h_py, n * sizeof(double), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_pz, h_pz, n * sizeof(double), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_mass, h_mass, n * sizeof(double), cudaMemcpyHostToDevice);
+        CUDA_CHECK(cudaMemcpy(d_px, h_px, n * sizeof(double), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_py, h_py, n * sizeof(double), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_pz, h_pz, n * sizeof(double), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_mass, h_mass, n * sizeof(double), cudaMemcpyHostToDevice));
     }
 
     /* subir posiciones actualizadas por el integrador */
@@ -148,21 +165,21 @@ void forces_compute(Universe *u){
         h_py[i] = u->particles[i].position.y;
         h_pz[i] = u->particles[i].position.z;
     }
-    cudaMemcpy(d_px, h_px, n * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_py, h_py, n * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_pz, h_pz, n * sizeof(double), cudaMemcpyHostToDevice);
+    CUDA_CHECK(cudaMemcpy(d_px, h_px, n * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_py, h_py, n * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_pz, h_pz, n * sizeof(double), cudaMemcpyHostToDevice));
 
     /* lanzar kernel */
     index_t blocks = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
     forces_kernel_tiled<<<blocks, BLOCK_SIZE>>>(d_px, d_py, d_pz,
                                                 d_ax, d_ay, d_az,
                                                 d_mass, n);
-    cudaDeviceSynchronize();
+    CUDA_CHECK(cudaDeviceSynchronize());
 
     /* descargar aceleraciones */
-    cudaMemcpy(h_ax, d_ax, n * sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_ay, d_ay, n * sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_az, d_az, n * sizeof(double), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaMemcpy(h_ax, d_ax, n * sizeof(double), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(h_ay, d_ay, n * sizeof(double), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(h_az, d_az, n * sizeof(double), cudaMemcpyDeviceToHost));
 
     for(index_t i = 0; i < n; i++){
         u->particles[i].acceleration.x = h_ax[i];

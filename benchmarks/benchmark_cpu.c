@@ -1,27 +1,4 @@
-#include "nbody/simulation.h"
-#include "nbody/constants.h"
-#include <stdio.h>
-#include <time.h>
-
-static double time_diff(struct timespec start, struct timespec end){
-    return (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) * 1e-9;
-}
-
-static void init_random_particles(Simulation *s){
-    for(index_t i = 0; i < s->universe->n; i++){
-        s->universe->particles[i].mass = 1.0;
-        s->universe->particles[i].position = (Vec3){
-            (real)(i * 7 + 3) / s->universe->n,
-            (real)(i * 13 + 5) / s->universe->n,
-            (real)(i * 17 + 11) / s->universe->n
-        };
-        s->universe->particles[i].velocity = (Vec3){
-            (real)(i * 3 + 1) / s->universe->n,
-            (real)(i * 5 + 2) / s->universe->n,
-            (real)(i * 11 + 7) / s->universe->n
-        };
-    }
-}
+#include "bench_utils.h"
 
 static void benchmark_n(index_t n, index_t steps){
     Simulation *s = simulation_create(n, 0.01, (real)steps * 0.01);
@@ -31,6 +8,7 @@ static void benchmark_n(index_t n, index_t steps){
     }
 
     init_random_particles(s);
+
     struct timespec t_start, t_end;
     clock_gettime(CLOCK_MONOTONIC, &t_start);
 
@@ -52,7 +30,7 @@ static void benchmark_n(index_t n, index_t steps){
 }
 
 int main(void){
-    printf("[ ] cpu benchmark [ ]\n\n");
+    printf("[cpu benchmark]\n\n");
     benchmark_n(100,   1000);
     benchmark_n(200,   500);
     benchmark_n(500,   200);

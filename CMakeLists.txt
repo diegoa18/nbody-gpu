@@ -8,7 +8,8 @@ set(CMAKE_CUDA_STANDARD 11)
 set(COMMON_SOURCES
     src/universe.c
     src/simulation.c
-    cpu/integrator.c
+    src/integrator.c
+    src/presets.c
 )
 
 # --- nbody CPU ---
@@ -36,7 +37,7 @@ add_executable(benchmark_cpu
     ${COMMON_SOURCES}
     cpu/forces.c
 )
-target_include_directories(benchmark_cpu PRIVATE include)
+target_include_directories(benchmark_cpu PRIVATE include benchmarks)
 target_link_libraries(benchmark_cpu PRIVATE m)
 
 # --- benchmark GPU ---
@@ -45,7 +46,7 @@ add_executable(benchmark_gpu
     ${COMMON_SOURCES}
     cuda/forces.cu
 )
-target_include_directories(benchmark_gpu PRIVATE include)
+target_include_directories(benchmark_gpu PRIVATE include benchmarks)
 target_link_libraries(benchmark_gpu PRIVATE m)
 
 # --- tests ---

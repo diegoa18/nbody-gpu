@@ -1,4 +1,5 @@
 #include "nbody/integrator.h"
+#include <stdlib.h>
 
 /*metodo de euler explicito
 v(t + dt) = v(t) + a(t) · dt
@@ -34,7 +35,7 @@ void integrator_step_semiimplicit(Universe *u, real dt, ForceFunc compute_forces
 void integrator_step_verlet(Universe *u, real dt, ForceFunc compute_forces){
     compute_forces(u);
 
-    Vec3 a_old[u->n];
+    Vec3 *a_old = (Vec3*)malloc(u->n * sizeof(Vec3));
     for(index_t i = 0; i < u->n; i++){
         a_old[i] = u->particles[i].acceleration;
     }
@@ -56,4 +57,6 @@ void integrator_step_verlet(Universe *u, real dt, ForceFunc compute_forces){
         Vec3 a_avg = vec3_scale(vec3_add(a_old[i], p->acceleration), 0.5);
         p->velocity = vec3_add(p->velocity, vec3_scale(a_avg, dt));
     }
+
+    free(a_old);
 }

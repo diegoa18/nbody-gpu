@@ -1,41 +1,45 @@
 #include "nbody/simulation.h"
-#include "nbody/forces.h"
-#include "nbody/constants.h"
+#include "nbody/presets.h"
 #include <stdio.h>
+#include <math.h>
 
-static void setup_sun_earth(Universe *u){
-    u->particles[0].mass = 1.989e30;
-    u->particles[0].position = (Vec3){0.0, 0.0, 0.0};
-    u->particles[0].velocity = (Vec3){0.0, 0.0, 0.0};
-
-    real r = 1.496e11;
-    real v = sqrt(G * 1.989e30 / r);
-    u->particles[1].mass = 5.972e24;
-    u->particles[1].position = (Vec3){r, 0.0, 0.0};
-    u->particles[1].velocity = (Vec3){0.0, v, 0.0};
-}
+#define TOLERANCE 1e-6
 
 int main(void){
     index_t n = 2;
     real dt = 3600.0;
     index_t steps = 100;
+    int fails = 0;
 
+    /* test 1: energy conservation con verlet */
     Simulation *s = simulation_create(n, dt, (real)steps * dt);
     if(!s) return 1;
 
     setup_sun_earth(s->universe);
+    s->integrator = INTEGRATOR_VERLET;
+    real e_initial = simulation_total_energy(s);
 
     for(index_t i = 0; i < steps; i++){
         simulation_step(s);
     }
 
-    /* imprimir posiciones y velocidades finales */
+    real e_final = simulation_total_energy(s);
+    real energy_err = fabs((e_final - e_initial) / e_initial);
+
+    if(energy_err > TOLERANCE){
+        printf("FAIL: energy conservation: err=%.15e > %.1e\n", energy_err, (double)TOLERANCE);
+        fails++;
+    }
+
+    /* test 2: output para diff con otro backend */
     for(index_t i = 0; i < n; i++){
         Particle *p = &s->universe->particles[i];
         printf("%.15e %.15e %.15e\n", p->position.x, p->position.y, p->position.z);
         printf("%.15e %.15e %.15e\n", p->velocity.x, p->velocity.y, p->velocity.z);
     }
 
+    printf("\n%s (%d failures)\n", fails == 0 ? "PASS" : "FAIL", fails);
+
     simulation_destroy(s);
-    return 0;
+    return fails;
 }
