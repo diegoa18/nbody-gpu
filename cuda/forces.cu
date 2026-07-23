@@ -23,13 +23,7 @@
     } \
 } while(0)
 
-/*
- * kernel con shared memory tiling
- *
- * cada bloque carga TILE_SIZE partículas a shared memory
- * y computa fuerzas contra sus BLOCK_SIZE hilos
- * reduce global memory reads de N a N/TILE_SIZE por hilo
- */
+/*kernel con shared memory tiling*/
 __global__ void forces_kernel_tiled(double *px, double *py, double *pz,
                                     double *ax, double *ay, double *az,
                                     double *mass, index_t n){
@@ -89,8 +83,7 @@ __global__ void forces_kernel_tiled(double *px, double *py, double *pz,
     }
 }
 
-/* --- estado GPU persistente --- */
-
+//etado GPU persistente
 static double *d_px, *d_py, *d_pz;
 static double *d_ax, *d_ay, *d_az;
 static double *d_mass;
@@ -134,15 +127,10 @@ static void gpu_init(index_t n){
     allocated_n = n;
 }
 
-/*
- * forces_compute — interfaz única compatible con ForceFunc
- * misma firma que cpu/forces.c::forces_compute
- * el integrator no sabe si es CPU o GPU
- */
+//misma firma que forces_compute de CPU
 void forces_compute(Universe *u){
     index_t n = u->n;
 
-    /* primera llamada — subir estado completo */
     if(allocated_n == 0){
         gpu_init(n);
 
@@ -159,7 +147,7 @@ void forces_compute(Universe *u){
         CUDA_CHECK(cudaMemcpy(d_mass, h_mass, n * sizeof(double), cudaMemcpyHostToDevice));
     }
 
-    /* subir posiciones actualizadas por el integrador */
+    //pos actualizadads por el integrador
     for(index_t i = 0; i < n; i++){
         h_px[i] = u->particles[i].position.x;
         h_py[i] = u->particles[i].position.y;
@@ -169,14 +157,11 @@ void forces_compute(Universe *u){
     CUDA_CHECK(cudaMemcpy(d_py, h_py, n * sizeof(double), cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_pz, h_pz, n * sizeof(double), cudaMemcpyHostToDevice));
 
-    /* lanzar kernel */
     index_t blocks = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
     forces_kernel_tiled<<<blocks, BLOCK_SIZE>>>(d_px, d_py, d_pz,
                                                 d_ax, d_ay, d_az,
                                                 d_mass, n);
     CUDA_CHECK(cudaDeviceSynchronize());
-
-    /* descargar aceleraciones */
     CUDA_CHECK(cudaMemcpy(h_ax, d_ax, n * sizeof(double), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(h_ay, d_ay, n * sizeof(double), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(h_az, d_az, n * sizeof(double), cudaMemcpyDeviceToHost));

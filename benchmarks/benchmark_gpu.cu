@@ -9,8 +9,6 @@ static void benchmark_n(index_t n, index_t steps){
     }
 
     init_random_particles(s);
-
-    /* warmup — inicializar GPU */
     simulation_step(s);
 
     struct timespec t_start, t_end;
@@ -38,8 +36,6 @@ static void benchmark_forces_only(index_t n){
     if(!s) return;
 
     init_random_particles(s);
-
-    /* warmup */
     forces_compute(s->universe);
 
     struct timespec t_start, t_end;

@@ -11,7 +11,7 @@ int main(void){
     index_t steps = 100;
     int fails = 0;
 
-    /* test 1: energy conservation con verlet */
+    /* test: energy conservation con verlet */
     Simulation *s = simulation_create(n, dt, (real)steps * dt);
     if(!s) return 1;
 
@@ -31,7 +31,7 @@ int main(void){
         fails++;
     }
 
-    /* test 2: output para diff con otro backend */
+    /* test: output para diff con otro backend */
     for(index_t i = 0; i < n; i++){
         Particle *p = &s->universe->particles[i];
         printf("%.15e %.15e %.15e\n", p->position.x, p->position.y, p->position.z);
