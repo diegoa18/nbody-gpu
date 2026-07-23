@@ -13,4 +13,3 @@ cmake-build-*/
 .vscode/
 .idea/
 *~
-/scripts
