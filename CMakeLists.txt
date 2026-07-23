@@ -42,3 +42,16 @@ add_executable(nbody_gpu
 
 target_include_directories(nbody_gpu PRIVATE include cuda)
 target_link_libraries(nbody_gpu PRIVATE m)
+
+# benchmark GPU
+add_executable(benchmark_gpu
+    benchmarks/benchmark_gpu.cu
+    src/universe.c
+    src/simulation.c
+    cpu/forces.c
+    cpu/integrator.c
+    cuda/forces.cu
+)
+
+target_include_directories(benchmark_gpu PRIVATE include cuda)
+target_link_libraries(benchmark_gpu PRIVATE m)
