@@ -1,41 +1,58 @@
 #include "bench_utils.h"
 
+#define REPS 5
+#define WARMUP_STEPS 10
+
 static void benchmark_n(index_t n, index_t steps){
-    Simulation *s = simulation_create(n, 0.01, (real)steps * 0.01);
-    if(!s){
-        printf("error: failed to create simulation for n=%lu\n", (unsigned long)n);
-        return;
+    warmup_cpu(n, WARMUP_STEPS);
+
+    double times[REPS];
+    index_t flops = estimate_flops(n);
+
+    for(index_t r = 0; r < REPS; r++){
+        Simulation *s = simulation_create(n, 0.01, (real)steps * 0.01);
+        if(!s){
+            printf("error: failed to create simulation for n=%lu\n", (unsigned long)n);
+            return;
+        }
+        init_random_particles(s);
+
+        struct timespec t_start, t_end;
+        clock_gettime(CLOCK_MONOTONIC, &t_start);
+
+        for(index_t i = 0; i < steps; i++){
+            simulation_step(s);
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &t_end);
+        times[r] = time_diff(t_start, t_end);
+
+        simulation_destroy(s);
     }
 
-    init_random_particles(s);
+    double mean, stddev;
+    calc_stats(times, REPS, &mean, &stddev);
+    double gflops = (double)flops * steps / mean / 1e9;
 
-    struct timespec t_start, t_end;
-    clock_gettime(CLOCK_MONOTONIC, &t_start);
-
-    for(index_t i = 0; i < steps; i++){
-        simulation_step(s);
-    }
-
-    clock_gettime(CLOCK_MONOTONIC, &t_end);
-    double elapsed = time_diff(t_start, t_end);
-
-    printf("n=%6lu  steps=%6lu  time=%.4fs  time_per_step=%.6fms  time_per_particle=%.3fus\n",
+    printf("n=%6lu  steps=%5lu  reps=%d  time=%.4fs +/- %.4fs  gflops=%.2f\n",
         (unsigned long)n,
         (unsigned long)steps,
-        elapsed,
-        elapsed / steps * 1000.0,
-        elapsed / (steps * n) * 1e6);
-
-    simulation_destroy(s);
+        REPS,
+        mean, stddev,
+        gflops);
 }
 
 int main(void){
-    printf("[cpu benchmark]\n\n");
-    benchmark_n(100,   1000);
-    benchmark_n(200,   500);
-    benchmark_n(500,   200);
-    benchmark_n(1000,  100);
-    benchmark_n(2000,  50);
+    printf("[cpu benchmark] velocity verlet, dt=0.01\n\n");
+
+    benchmark_n(100,    1000);
+    benchmark_n(200,    1000);
+    benchmark_n(500,     500);
+    benchmark_n(1000,    200);
+    benchmark_n(2000,    100);
+    benchmark_n(5000,     20);
+    benchmark_n(10000,    10);
+
     printf("\n");
     return 0;
 }

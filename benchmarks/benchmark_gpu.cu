@@ -1,76 +1,71 @@
 #include "bench_utils.h"
 #include "nbody/forces.h"
+#include <cuda_runtime.h>
 
-static void benchmark_n(index_t n, index_t steps){
-    Simulation *s = simulation_create(n, 0.01, (real)steps * 0.01);
-    if(!s){
-        printf("error: failed to create simulation for n=%lu\n", (unsigned long)n);
-        return;
+#define REPS 5
+#define WARMUP_STEPS 10
+
+static void check_cuda(cudaError_t err, const char *msg){
+    if(err != cudaSuccess){
+        fprintf(stderr, "cuda error: %s: %s\n", msg, cudaGetErrorString(err));
+        exit(1);
     }
-
-    init_random_particles(s);
-    simulation_step(s);
-
-    struct timespec t_start, t_end;
-    clock_gettime(CLOCK_MONOTONIC, &t_start);
-
-    for(index_t i = 0; i < steps; i++){
-        simulation_step(s);
-    }
-
-    clock_gettime(CLOCK_MONOTONIC, &t_end);
-    double elapsed = time_diff(t_start, t_end);
-
-    printf("n=%6lu  steps=%6lu  time=%.4fs  time_per_step=%.6fms  time_per_particle=%.3fus\n",
-        (unsigned long)n,
-        (unsigned long)steps,
-        elapsed,
-        elapsed / steps * 1000.0,
-        elapsed / (steps * n) * 1e6);
-
-    simulation_destroy(s);
 }
 
-static void benchmark_forces_only(index_t n){
-    Simulation *s = simulation_create(n, 0.01, 0.01);
-    if(!s) return;
+static void benchmark_n(index_t n, index_t steps){
+    warmup_gpu(n, WARMUP_STEPS);
 
-    init_random_particles(s);
-    forces_compute(s->universe);
+    double times[REPS];
+    index_t flops = estimate_flops(n);
 
-    struct timespec t_start, t_end;
-    index_t iters = 100;
-    clock_gettime(CLOCK_MONOTONIC, &t_start);
-    for(index_t i = 0; i < iters; i++){
-        forces_compute(s->universe);
+    for(index_t r = 0; r < REPS; r++){
+        Simulation *s = simulation_create(n, 0.01, (real)steps * 0.01);
+        if(!s){
+            printf("error: failed to create simulation for n=%lu\n", (unsigned long)n);
+            return;
+        }
+        init_random_particles(s);
+
+        cudaEvent_t start, stop;
+        check_cuda(cudaEventCreate(&start), "event create start");
+        check_cuda(cudaEventCreate(&stop), "event create stop");
+
+        check_cuda(cudaEventRecord(start), "record start");
+        forces_integrate(s->universe, 0.01, steps, s->integrator);
+        check_cuda(cudaEventRecord(stop), "record stop");
+        check_cuda(cudaEventSynchronize(stop), "sync stop");
+
+        float ms = 0.0f;
+        check_cuda(cudaEventElapsedTime(&ms, start, stop), "elapsed time");
+        times[r] = ms / 1000.0;
+
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
+        simulation_destroy(s);
     }
-    clock_gettime(CLOCK_MONOTONIC, &t_end);
-    double elapsed = time_diff(t_start, t_end);
 
-    printf("  forces_only: n=%6lu  iters=%lu  time_per_call=%.3fms\n",
+    double mean, stddev;
+    calc_stats(times, REPS, &mean, &stddev);
+    double gflops = (double)flops * steps / mean / 1e9;
+
+    printf("n=%6lu  steps=%5lu  reps=%d  time=%.4fs +/- %.4fs  gflops=%.2f\n",
         (unsigned long)n,
-        (unsigned long)iters,
-        elapsed / iters * 1000.0);
-
-    simulation_destroy(s);
+        (unsigned long)steps,
+        REPS,
+        mean, stddev,
+        gflops);
 }
 
 int main(void){
-    printf("[gpu benchmark]\n\n");
+    printf("[gpu benchmark] velocity verlet, dt=0.01\n\n");
 
-    printf("--- full step (forces + integrate + transfers) ---\n");
-    benchmark_n(100,   1000);
-    benchmark_n(200,   500);
-    benchmark_n(500,   200);
-    benchmark_n(1000,  100);
-    benchmark_n(2000,  50);
-
-    printf("\n--- forces kernel only ---\n");
-    benchmark_forces_only(100);
-    benchmark_forces_only(200);
-    benchmark_forces_only(500);
-    benchmark_forces_only(1000);
-    benchmark_forces_only(2000);
+    benchmark_n(100,    1000);
+    benchmark_n(200,    1000);
+    benchmark_n(500,     500);
+    benchmark_n(1000,    200);
+    benchmark_n(2000,    100);
+    benchmark_n(5000,     20);
+    benchmark_n(10000,    10);
 
     printf("\n");
     return 0;
