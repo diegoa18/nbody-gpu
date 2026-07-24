@@ -41,9 +41,19 @@ void simulation_step(Simulation *s){
 }
 
 void simulation_run(Simulation *s){
+#ifdef NBODY_GPU
+    index_t steps = (index_t)((s->total_time - s->current_time) / s->dt);
+    if(steps > 0){
+        int itype = (s->integrator == INTEGRATOR_EULER) ? 0 :
+                    (s->integrator == INTEGRATOR_EULER_SEMIIMPLICIT) ? 1 : 2;
+        forces_integrate(s->universe, s->dt, steps, itype);
+        s->current_time += (real)steps * s->dt;
+    }
+#else
     while(s->current_time < s->total_time){
         simulation_step(s);
     }
+#endif
 }
 
 void simulation_destroy(Simulation *s){

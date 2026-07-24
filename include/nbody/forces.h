@@ -9,6 +9,9 @@ extern "C" {
 
 void forces_compute(Universe *u);
 
+//corre N paso de integracion completamente en GPU
+int forces_integrate(Universe *u, real dt, index_t steps, int integrator_type);
+
 #ifdef __cplusplus
 }
 #endif
