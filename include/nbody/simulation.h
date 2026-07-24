@@ -31,7 +31,6 @@ void simulation_destroy(Simulation *s);
 real simulation_kinetic_energy(Simulation *s);
 real simulation_potential_energy(Simulation *s);
 real simulation_total_energy(Simulation *s);
-Vec3 simulation_linear_momentum(Simulation *s);
 
 #ifdef __cplusplus
 }

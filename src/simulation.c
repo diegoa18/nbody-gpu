@@ -89,13 +89,3 @@ real simulation_potential_energy(Simulation *s){
 real simulation_total_energy(Simulation *s){
     return simulation_kinetic_energy(s) + simulation_potential_energy(s);
 }
-
-// momento lineal total: p = Σ m_i · v_i
-Vec3 simulation_linear_momentum(Simulation *s){
-    Vec3 p = {0.0, 0.0, 0.0};
-    for(index_t i = 0; i < s->universe->n; i++){
-        Particle *part = &s->universe->particles[i];
-        p = vec3_add(p, vec3_scale(part->velocity, part->mass));
-    }
-    return p;
-}

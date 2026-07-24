@@ -30,11 +30,6 @@ static inline real vec3_norm(Vec3 v){
     return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-static inline Vec3 vec3_normalize(Vec3 v){
-    real n = vec3_norm(v);
-    return (Vec3){v.x / n, v.y / n, v.z / n};
-}
-
 static inline real vec3_distance(Vec3 a, Vec3 b){
     return vec3_norm(vec3_sub(b, a));
 }

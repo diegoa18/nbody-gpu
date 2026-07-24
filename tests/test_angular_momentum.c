@@ -1,29 +1,21 @@
 #include "nbody/simulation.h"
 #include "nbody/presets.h"
+#include "nbody/forces.h"
 #include "nbody/constants.h"
 #include <stdio.h>
 #include <math.h>
 
 #define TOLERANCE 1e-10
 
-/*
- * test_angular_momentum — conservación de momento angular
- *
+/*conservación de momento angular
  * L = Σ rᵢ × mᵢvᵢ
- *
- * Para un sistema aislado, L es constante.
- * Verificamos |L(t) - L(0)| / |L(0)| < TOLERANCE
- *
- * Test 1: Sun-Earth (2 cuerpos)
- * Test 2: 3 cuerpos (masas iguales en triángulo)
- */
+ * test 1: sol y tierra
+ * test 2: 3 cuerpos*/
 
 static Vec3 compute_angular_momentum(Universe *u){
     Vec3 L = {0.0, 0.0, 0.0};
     for(index_t i = 0; i < u->n; i++){
-        /* L += r × (m · v) = m · (r × v) */
         Vec3 mv = vec3_scale(u->particles[i].velocity, u->particles[i].mass);
-        /* cross product: r × mv */
         Vec3 r = u->particles[i].position;
         Vec3 cross;
         cross.x = r.y * mv.z - r.z * mv.y;
@@ -48,9 +40,7 @@ static int test_sun_earth(void){
     Vec3 L0 = compute_angular_momentum(s->universe);
     real L0_mag = vec3_norm(L0);
 
-    for(index_t i = 0; i < steps; i++){
-        simulation_step(s);
-    }
+    forces_integrate(s->universe, dt, steps, 2);
 
     Vec3 Lf = compute_angular_momentum(s->universe);
     real Lf_mag = vec3_norm(Lf);
@@ -75,10 +65,8 @@ static int test_three_bodies(void){
     Simulation *s = simulation_create(3, dt, (real)steps * dt);
     if(!s) return 1;
 
-    /* triángulo equilátero con masas iguales y rotación */
     real d = 1.0e11;
     real mass = 1.0e30;
-    /* velocidad tangencial para rotación rígida: v = sqrt(G·M_tot / (2·d)) */
     real v = sqrt(G * 3.0 * mass / (2.0 * d));
 
     s->universe->particles[0].mass = mass;
@@ -98,9 +86,7 @@ static int test_three_bodies(void){
     Vec3 L0 = compute_angular_momentum(s->universe);
     real L0_mag = vec3_norm(L0);
 
-    for(index_t i = 0; i < steps; i++){
-        simulation_step(s);
-    }
+    forces_integrate(s->universe, dt, steps, 2);
 
     Vec3 Lf = compute_angular_momentum(s->universe);
     real Lf_mag = vec3_norm(Lf);

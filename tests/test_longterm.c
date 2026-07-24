@@ -1,49 +1,39 @@
 #include "nbody/simulation.h"
 #include "nbody/presets.h"
+#include "nbody/forces.h"
 #include <stdio.h>
 #include <math.h>
 
 #define TOLERANCE 1e-3
 
-/*
- * test_longterm — estabilidad a largo plazo
- *
- * Verlet es simléctico: el error de energía debe permanecer acotado,
- * no crecer linealmente como en Euler.
- *
- * Test: Sun-Earth durante 100 años
- * Verificar que |ΔE/E₀| se mantiene < TOLERANCE
- */
+/*estabilidad a largo plazo
+ * verlet es simplectico: el error de energía debe permanecer acotado*/
 
 static int test_100_years(void){
     int fails = 0;
     real dt = 3600.0;
-    real total_time = 100.0 * 365.25 * 24.0 * 3600.0;
-    index_t steps = (index_t)(total_time / dt);
+    index_t total_steps = (index_t)(100.0 * 365.25 * 24.0 * 3600.0 / dt);
+    index_t chunk_steps = (index_t)(10.0 * 365.25 * 24.0 * 3600.0 / dt);
+    index_t chunks = total_steps / chunk_steps;
 
-    Simulation *s = simulation_create(2, dt, total_time);
+    Simulation *s = simulation_create(2, dt, (real)total_steps * dt);
     if(!s) return 1;
 
     setup_sun_earth(s->universe);
     s->integrator = INTEGRATOR_VERLET;
 
     real e0 = simulation_total_energy(s);
-
-    /* medir energía cada 10 años */
-    index_t checkpoint_interval = (index_t)(10.0 * 365.25 * 24.0 * 3600.0 / dt);
     real max_err = 0.0;
 
-    for(index_t i = 0; i <= steps; i++){
-        if(i > 0 && i % checkpoint_interval == 0){
-            real e = simulation_total_energy(s);
-            real err = fabs((e - e0) / e0);
-            real years = (real)i * dt / (365.25 * 24.0 * 3600.0);
+    for(index_t c = 0; c < chunks; c++){
+        forces_integrate(s->universe, dt, chunk_steps, 2);
 
-            if(err > max_err) max_err = err;
+        real e = simulation_total_energy(s);
+        real err = fabs((e - e0) / e0);
+        real years = (real)(c + 1) * 10.0;
 
-            printf("  t=%3.0f years  energy_err=%.6e\n", years, err);
-        }
-        simulation_step(s);
+        if(err > max_err) max_err = err;
+        printf("  t=%3.0f years  energy_err=%.6e\n", years, err);
     }
 
     real ef = simulation_total_energy(s);

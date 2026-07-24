@@ -14,24 +14,13 @@ static void run_simulation(const char *name, IntegratorType integrator,
     s->integrator = integrator;
 
     index_t steps = (index_t)(total_time / dt);
-    index_t print_interval = steps / 10;
     real e0 = simulation_total_energy(s);
 
     printf("=== %s ===\n", name);
     printf("steps: %lu, dt: %.0fs, energy initial: %.6e J\n\n",
         (unsigned long)steps, dt, e0);
 
-    for(index_t i = 0; i <= steps; i++){
-        if(i % print_interval == 0){
-            Particle *earth = &s->universe->particles[1];
-            real dist = vec3_norm(earth->position);
-            real e = simulation_total_energy(s);
-            real de = (e - e0) / e0 * 100.0;
-            printf("t=%8.1f days  dist=%.6e AU  energy_err=%+.4f%%\n",
-                s->current_time / 86400.0, dist / 1.496e11, de);
-        }
-        simulation_step(s);
-    }
+    simulation_run(s);
 
     real ef = simulation_total_energy(s);
     printf("\nfinal energy error: %+.6f%%\n\n", (ef - e0) / e0 * 100.0);

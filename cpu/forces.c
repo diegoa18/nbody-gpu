@@ -15,7 +15,8 @@ void forces_compute(Universe *u){
 
             Vec3 rij = vec3_sub(u->particles[j].position, u->particles[i].position);
             real dist2 = vec3_dot(rij, rij);
-            real denom = pow(dist2 + SOFTENING * SOFTENING, 1.5);
+            real d = sqrt(dist2 + SOFTENING * SOFTENING);
+            real denom = d * d * d;
 
             u->particles[i].acceleration = vec3_add(
                 u->particles[i].acceleration,

@@ -5,20 +5,16 @@
 #include <stdio.h>
 #include <math.h>
 
-#define TOLERANCE 1e-10
-
 /*
  * test_equivalence — equivalencia numérica CPU vs GPU
  *
- * Ejecuta N pasos con el mismo initial state en ambos backends
- * y compara resultados a nivel de precisión double.
+ * Ejecuta N pasos via forces_integrate (la ruta principal de GPU)
+ * con las mismas condiciones iniciales en ambos backends.
+ * Compilar como test_equivalence (CPU) y test_equivalence_gpu (GPU),
+ * luego comparar: diff <(./build/test_equivalence) <(./build/test_equivalence_gpu)
  *
- * El test compila como test_cpu (usa cpu/forces.c) o
- * test_gpu (usa cuda/forces.cu). Se ejecutan ambos y se
- * comparan los outputs con diff.
- *
- * Este archivo produce valores numéricos que se comparan
- * externamente con: diff <(./test_cpu) <(./test_gpu)
+ * Deben producir resultados idénticos (mismas bit patterns)
+ * porque la fórmula de fuerza está unificada.
  */
 
 static void setup_n_body(Universe *u, index_t n){
@@ -50,7 +46,7 @@ static void print_particle_state(Universe *u){
 int main(void){
     int fails = 0;
 
-    /* test 1: N=2, 100 pasos */
+    /* test 1: N=2, 100 pasos — sol-earth via forces_integrate */
     {
         real dt = 3600.0;
         index_t steps = 100;
@@ -60,16 +56,14 @@ int main(void){
         setup_sun_earth(s->universe);
         s->integrator = INTEGRATOR_VERLET;
 
-        for(index_t i = 0; i < steps; i++){
-            simulation_step(s);
-        }
+        forces_integrate(s->universe, dt, steps, 2);
 
-        printf("[N=2, steps=100]\n");
+        printf("[N=2, steps=100, verlet]\n");
         print_particle_state(s->universe);
         simulation_destroy(s);
     }
 
-    /* test 2: N=10, 50 pasos */
+    /* test 2: N=10, 50 pasos — configuración arbitraria */
     {
         real dt = 50.0;
         index_t steps = 50;
@@ -79,11 +73,9 @@ int main(void){
         setup_n_body(s->universe, 10);
         s->integrator = INTEGRATOR_VERLET;
 
-        for(index_t i = 0; i < steps; i++){
-            simulation_step(s);
-        }
+        forces_integrate(s->universe, dt, steps, 2);
 
-        printf("\n[N=10, steps=50]\n");
+        printf("\n[N=10, steps=50, verlet]\n");
         print_particle_state(s->universe);
         simulation_destroy(s);
     }
@@ -98,11 +90,9 @@ int main(void){
         setup_n_body(s->universe, 100);
         s->integrator = INTEGRATOR_VERLET;
 
-        for(index_t i = 0; i < steps; i++){
-            simulation_step(s);
-        }
+        forces_integrate(s->universe, dt, steps, 2);
 
-        printf("\n[N=100, steps=10]\n");
+        printf("\n[N=100, steps=10, verlet]\n");
         print_particle_state(s->universe);
         simulation_destroy(s);
     }

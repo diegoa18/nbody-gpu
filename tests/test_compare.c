@@ -1,5 +1,6 @@
 #include "nbody/simulation.h"
 #include "nbody/presets.h"
+#include "nbody/forces.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -11,7 +12,6 @@ int main(void){
     index_t steps = 100;
     int fails = 0;
 
-    /* test: energy conservation con verlet */
     Simulation *s = simulation_create(n, dt, (real)steps * dt);
     if(!s) return 1;
 
@@ -19,9 +19,7 @@ int main(void){
     s->integrator = INTEGRATOR_VERLET;
     real e_initial = simulation_total_energy(s);
 
-    for(index_t i = 0; i < steps; i++){
-        simulation_step(s);
-    }
+    forces_integrate(s->universe, dt, steps, 2);
 
     real e_final = simulation_total_energy(s);
     real energy_err = fabs((e_final - e_initial) / e_initial);
@@ -31,7 +29,6 @@ int main(void){
         fails++;
     }
 
-    /* test: output para diff con otro backend */
     for(index_t i = 0; i < n; i++){
         Particle *p = &s->universe->particles[i];
         printf("%.15e %.15e %.15e\n", p->position.x, p->position.y, p->position.z);

@@ -1,21 +1,13 @@
 #include "nbody/simulation.h"
 #include "nbody/presets.h"
+#include "nbody/forces.h"
 #include "nbody/constants.h"
 #include <stdio.h>
 #include <math.h>
 
 #define TOLERANCE 1e-10
 
-/*
- * test_multibody — conservación de leyes para 3+ cuerpos
- *
- * Para un sistema aislado:
- *   - Energía total se conserva
- *   - Momento lineal se conserva
- *
- * No hay solución analítica para 3 cuerpos, pero las leyes de
- * conservación son inviolables para el hamiltoniano newtoniano.
- */
+/*conservacion de leyes para 3+ cuerpos*/
 
 static Vec3 compute_linear_momentum(Universe *u){
     Vec3 p = {0.0, 0.0, 0.0};
@@ -33,7 +25,6 @@ static int test_three_body_conservation(void){
     Simulation *s = simulation_create(3, dt, (real)steps * dt);
     if(!s) return 1;
 
-    /* sistema de 3 masas — configuración arbitraria */
     s->universe->particles[0].mass = 1.989e30;
     s->universe->particles[0].position = (Vec3){0.0, 0.0, 0.0};
     s->universe->particles[0].velocity = (Vec3){0.0, 0.0, 0.0};
@@ -48,7 +39,6 @@ static int test_three_body_conservation(void){
 
     s->integrator = INTEGRATOR_VERLET;
 
-    /* valores iniciales */
     real e0 = simulation_total_energy(s);
     Vec3 p0 = compute_linear_momentum(s->universe);
     real p0_mag = vec3_norm(p0);
@@ -56,11 +46,8 @@ static int test_three_body_conservation(void){
     printf("  E0 = %.15e J\n", e0);
     printf("  |p0| = %.15e kg·m/s\n\n", p0_mag);
 
-    for(index_t i = 0; i < steps; i++){
-        simulation_step(s);
-    }
+    forces_integrate(s->universe, dt, steps, 2);
 
-    /* valores finales */
     real ef = simulation_total_energy(s);
     Vec3 pf = compute_linear_momentum(s->universe);
     real pf_mag = vec3_norm(pf);
