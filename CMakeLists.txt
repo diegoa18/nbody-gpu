@@ -13,6 +13,12 @@ set(COMMON_SOURCES
     src/presets.c
 )
 
+set(CUDA_SOURCES
+    cuda/gpu_context.cu
+    cuda/forces_kernel.cu
+    cuda/integrators.cu
+)
+
 # --- nbody CPU ---
 add_executable(nbody
     src/main.c
@@ -26,7 +32,7 @@ target_link_libraries(nbody PRIVATE m)
 add_executable(nbody_gpu
     src/main.c
     ${COMMON_SOURCES}
-    cuda/forces.cu
+    ${CUDA_SOURCES}
 )
 target_include_directories(nbody_gpu PRIVATE include)
 target_compile_definitions(nbody_gpu PRIVATE NBODY_GPU=1)
@@ -45,7 +51,7 @@ target_link_libraries(benchmark_cpu PRIVATE m)
 add_executable(benchmark_gpu
     benchmarks/benchmark_gpu.cu
     ${COMMON_SOURCES}
-    cuda/forces.cu
+    ${CUDA_SOURCES}
 )
 target_include_directories(benchmark_gpu PRIVATE include benchmarks)
 target_link_libraries(benchmark_gpu PRIVATE m)
@@ -63,14 +69,14 @@ target_link_libraries(test_cpu PRIVATE m)
 add_executable(test_gpu
     tests/test_compare.c
     ${COMMON_SOURCES}
-    cuda/forces.cu
+    ${CUDA_SOURCES}
 )
 target_include_directories(test_gpu PRIVATE include)
 target_link_libraries(test_gpu PRIVATE m)
 
 # --- validation tests (CPU) ---
 set(VALIDATION_LIB_SOURCES ${COMMON_SOURCES} cpu/forces.c)
-set(VALIDATION_LIB_SOURCES_GPU ${COMMON_SOURCES} cuda/forces.cu)
+set(VALIDATION_LIB_SOURCES_GPU ${COMMON_SOURCES} ${CUDA_SOURCES})
 
 add_executable(test_kepler
     tests/test_analytical.c
@@ -152,7 +158,7 @@ target_link_libraries(test_equivalence_gpu PRIVATE m)
 add_executable(profile_helper
     tests/profile_helper.c
     ${COMMON_SOURCES}
-    cuda/forces.cu
+    ${CUDA_SOURCES}
 )
 target_include_directories(profile_helper PRIVATE include)
 target_compile_definitions(profile_helper PRIVATE NBODY_GPU=1)
@@ -165,3 +171,13 @@ add_executable(test_convergence
 )
 target_include_directories(test_convergence PRIVATE include)
 target_link_libraries(test_convergence PRIVATE m)
+
+# --- convergence test (GPU) ---
+add_executable(test_convergence_gpu
+    tests/test_convergence.c
+    ${COMMON_SOURCES}
+    ${CUDA_SOURCES}
+)
+target_include_directories(test_convergence_gpu PRIVATE include)
+target_compile_definitions(test_convergence_gpu PRIVATE NBODY_GPU=1)
+target_link_libraries(test_convergence_gpu PRIVATE m)

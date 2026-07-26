@@ -1,0 +1,31 @@
+# GPU Kernel Profile ->x forces_kernel_tiled
+# Nsight Compute, N=1000, Velocity Verlet, 10 steps, dt=0.01
+# RTX 2050 (4GB, compute 8.6, 16 SMs)
+
+## Kernel: forces_kernel_tiled
+Grid: (4, 1, 1)  Block: (256, 1, 1)
+
+### Compute
+Duration:           4.96 ms
+SM throughput:      22.48%
+FP64 utilization:   90.0%          (bottleneck)
+FP instructions:    576K fused, 352K non-fused (19% improvable via FMA)
+
+### Memory
+Memory throughput:  0.39%
+DRAM frequency:     5.89 GHz
+SM frequency:       832.49 MHz
+Shared memory stall: 91.8% of CPI (59.0 of 64.3 cycles/warp)
+
+### Occupancy
+Achieved:           16.67%
+Theoretical max:    83.3%
+Blocks per SM:      1 (4 blocks / 16 SMs -> 12 SMs idle)
+
+### Bottleneck
+FP64 compute-bound at 90%. Memory at 0.39%.
+Grid too small: only 4 blocks for 16 SMs.
+
+## Kernels: integr_verlet_pos/vel
+Duration: <10 μs each (negligible)
+SM: 6-8%, FP64: 36-49%
