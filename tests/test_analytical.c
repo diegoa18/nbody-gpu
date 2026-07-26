@@ -12,7 +12,6 @@ static int test_kepler(void){
     int fails = 0;
     real dt = 3600.0;
     real total_time = 365.25 * 24.0 * 3600.0;
-    index_t steps = (index_t)(total_time / dt);
 
     real r = 1.496e11;
     real M = 1.989e30;

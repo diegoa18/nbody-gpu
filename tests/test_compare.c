@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#define TOLERANCE 1e-6
+#define TOLERANCE 1e-10
 
 int main(void){
     index_t n = 2;
@@ -19,7 +19,7 @@ int main(void){
     s->integrator = INTEGRATOR_VERLET;
     real e_initial = simulation_total_energy(s);
 
-    forces_integrate(s->universe, dt, steps, 2);
+    forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
 
     real e_final = simulation_total_energy(s);
     real energy_err = fabs((e_final - e_initial) / e_initial);

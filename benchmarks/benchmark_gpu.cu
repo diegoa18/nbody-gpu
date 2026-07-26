@@ -25,6 +25,7 @@ static void benchmark_n(index_t n, index_t steps){
             return;
         }
         init_random_particles(s);
+        s->integrator = INTEGRATOR_VERLET;
 
         cudaEvent_t start, stop;
         check_cuda(cudaEventCreate(&start), "event create start");

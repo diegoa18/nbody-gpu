@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#define TOLERANCE 1e-3
+#define TOLERANCE 1e-5
 
 /*estabilidad a largo plazo
  * verlet es simplectico: el error de energía debe permanecer acotado*/
@@ -26,7 +26,7 @@ static int test_100_years(void){
     real max_err = 0.0;
 
     for(index_t c = 0; c < chunks; c++){
-        forces_integrate(s->universe, dt, chunk_steps, 2);
+        forces_integrate(s->universe, dt, chunk_steps, INTEGRATOR_VERLET);
 
         real e = simulation_total_energy(s);
         real err = fabs((e - e0) / e0);
@@ -42,8 +42,8 @@ static int test_100_years(void){
     printf("  final energy error: %.6e (tolerance: %.1e)\n", final_err, (double)TOLERANCE);
     printf("  max energy error:   %.6e\n", max_err);
 
-    if(final_err > TOLERANCE){
-        printf("  FAIL: energy error exceeds tolerance after 100 years\n");
+    if(max_err > TOLERANCE){
+        printf("  FAIL: max energy error exceeds tolerance\n");
         fails++;
     }
 

@@ -3,6 +3,7 @@ project(nbody LANGUAGES C CUDA)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CUDA_STANDARD 11)
+add_compile_options(-Wall -Wextra)
 
 # --- sources compartidos (sin forces) ---
 set(COMMON_SOURCES
@@ -146,3 +147,21 @@ add_executable(test_equivalence_gpu
 target_include_directories(test_equivalence_gpu PRIVATE include)
 target_compile_definitions(test_equivalence_gpu PRIVATE NBODY_GPU=1)
 target_link_libraries(test_equivalence_gpu PRIVATE m)
+
+# --- profiling helper (GPU) ---
+add_executable(profile_helper
+    tests/profile_helper.c
+    ${COMMON_SOURCES}
+    cuda/forces.cu
+)
+target_include_directories(profile_helper PRIVATE include)
+target_compile_definitions(profile_helper PRIVATE NBODY_GPU=1)
+target_link_libraries(profile_helper PRIVATE m)
+
+# --- convergence test (CPU) ---
+add_executable(test_convergence
+    tests/test_convergence.c
+    ${VALIDATION_LIB_SOURCES}
+)
+target_include_directories(test_convergence PRIVATE include)
+target_link_libraries(test_convergence PRIVATE m)

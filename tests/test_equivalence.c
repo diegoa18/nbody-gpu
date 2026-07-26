@@ -1,9 +1,9 @@
 #include "nbody/simulation.h"
 #include "nbody/presets.h"
 #include "nbody/forces.h"
-#include "nbody/constants.h"
 #include <stdio.h>
 #include <math.h>
+#include <float.h>
 
 /*
  * test_equivalence — equivalencia numérica CPU vs GPU
@@ -15,7 +15,23 @@
  *
  * Deben producir resultados idénticos (mismas bit patterns)
  * porque la fórmula de fuerza está unificada.
+ *
+ * También ejecuta sanity checks internos: posiciones y velocidades
+ * deben ser finitas (no NaN ni Inf).
  */
+
+static int check_finite(Universe *u){
+    for(index_t i = 0; i < u->n; i++){
+        Particle *p = &u->particles[i];
+        if(!isfinite(p->position.x) || !isfinite(p->position.y) || !isfinite(p->position.z)){
+            return 1;
+        }
+        if(!isfinite(p->velocity.x) || !isfinite(p->velocity.y) || !isfinite(p->velocity.z)){
+            return 1;
+        }
+    }
+    return 0;
+}
 
 static void setup_n_body(Universe *u, index_t n){
     for(index_t i = 0; i < n; i++){
@@ -56,10 +72,14 @@ int main(void){
         setup_sun_earth(s->universe);
         s->integrator = INTEGRATOR_VERLET;
 
-        forces_integrate(s->universe, dt, steps, 2);
+        forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
 
         printf("[N=2, steps=100, verlet]\n");
         print_particle_state(s->universe);
+        if(check_finite(s->universe)){
+            printf("FAIL: non-finite values in N=2\n");
+            fails++;
+        }
         simulation_destroy(s);
     }
 
@@ -73,10 +93,14 @@ int main(void){
         setup_n_body(s->universe, 10);
         s->integrator = INTEGRATOR_VERLET;
 
-        forces_integrate(s->universe, dt, steps, 2);
+        forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
 
         printf("\n[N=10, steps=50, verlet]\n");
         print_particle_state(s->universe);
+        if(check_finite(s->universe)){
+            printf("FAIL: non-finite values in N=10\n");
+            fails++;
+        }
         simulation_destroy(s);
     }
 
@@ -90,13 +114,17 @@ int main(void){
         setup_n_body(s->universe, 100);
         s->integrator = INTEGRATOR_VERLET;
 
-        forces_integrate(s->universe, dt, steps, 2);
+        forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
 
         printf("\n[N=100, steps=10, verlet]\n");
         print_particle_state(s->universe);
+        if(check_finite(s->universe)){
+            printf("FAIL: non-finite values in N=100\n");
+            fails++;
+        }
         simulation_destroy(s);
     }
 
-    printf("\n");
+    printf("\n%s (%d failures)\n", fails == 0 ? "PASS" : "FAIL", fails);
     return fails;
 }

@@ -27,13 +27,16 @@ void forces_compute(Universe *u){
 }
 
 //fallback CPU
-int forces_integrate(Universe *u, real dt, index_t steps, int integrator_type){
+int forces_integrate(Universe *u, real dt, index_t steps, IntegratorType integrator_type){
     ForceFunc f = forces_compute;
     for(index_t i = 0; i < steps; i++){
         switch(integrator_type){
-            case 0:  integrator_step(u, dt, f); break;
-            case 1:  integrator_step_semiimplicit(u, dt, f); break;
-            default: integrator_step_verlet(u, dt, f); break;
+            case INTEGRATOR_EULER:             integrator_step(u, dt, f); break;
+            case INTEGRATOR_EULER_SEMIIMPLICIT: integrator_step_semiimplicit(u, dt, f); break;
+            case INTEGRATOR_VERLET:            integrator_step_verlet(u, dt, f); break;
+            case INTEGRATOR_RK4:               integrator_step_rk4(u, dt, f); break;
+            case INTEGRATOR_LEAPFROG:          integrator_step_leapfrog(u, dt, f); break;
+            default:                           integrator_step_verlet(u, dt, f); break;
         }
     }
     return 0;

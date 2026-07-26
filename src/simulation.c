@@ -4,6 +4,7 @@
 #include "nbody/constants.h"
 #include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
 
 Simulation *simulation_create(index_t n, real dt, real total_time){
     Simulation *s = malloc(sizeof(Simulation));
@@ -25,28 +26,37 @@ Simulation *simulation_create(index_t n, real dt, real total_time){
 }
 
 void simulation_step(Simulation *s){
+    int rc = 0;
     ForceFunc f = s->force_func;
     switch(s->integrator){
         case INTEGRATOR_EULER:
-            integrator_step(s->universe, s->dt, f);
+            rc = integrator_step(s->universe, s->dt, f);
             break;
         case INTEGRATOR_EULER_SEMIIMPLICIT:
-            integrator_step_semiimplicit(s->universe, s->dt, f);
+            rc = integrator_step_semiimplicit(s->universe, s->dt, f);
             break;
         case INTEGRATOR_VERLET:
-            integrator_step_verlet(s->universe, s->dt, f);
+            rc = integrator_step_verlet(s->universe, s->dt, f);
+            break;
+        case INTEGRATOR_RK4:
+            rc = integrator_step_rk4(s->universe, s->dt, f);
+            break;
+        case INTEGRATOR_LEAPFROG:
+            rc = integrator_step_leapfrog(s->universe, s->dt, f);
             break;
     }
-    s->current_time += s->dt;
+    if(!rc) s->current_time += s->dt;
 }
 
 void simulation_run(Simulation *s){
 #ifdef NBODY_GPU
-    index_t steps = (index_t)((s->total_time - s->current_time) / s->dt);
-    if(steps > 0){
-        int itype = (s->integrator == INTEGRATOR_EULER) ? 0 :
-                    (s->integrator == INTEGRATOR_EULER_SEMIIMPLICIT) ? 1 : 2;
-        forces_integrate(s->universe, s->dt, steps, itype);
+    long raw_steps = lround((s->total_time - s->current_time) / s->dt);
+    if(raw_steps > 0){
+        index_t steps = (index_t)raw_steps;
+        if(forces_integrate(s->universe, s->dt, steps, s->integrator)){
+            fprintf(stderr, "error: forces_integrate failed\n");
+            return;
+        }
         s->current_time += (real)steps * s->dt;
     }
 #else
@@ -79,8 +89,9 @@ real simulation_potential_energy(Simulation *s){
         for(index_t j = i + 1; j < s->universe->n; j++){
             real dist = vec3_distance(s->universe->particles[i].position,
                                      s->universe->particles[j].position);
+            real d = sqrt(dist * dist + SOFTENING * SOFTENING);
             pe -= G * s->universe->particles[i].mass *
-                  s->universe->particles[j].mass / dist;
+                  s->universe->particles[j].mass / d;
         }
     }
     return pe;

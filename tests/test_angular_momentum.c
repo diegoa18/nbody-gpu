@@ -40,7 +40,7 @@ static int test_sun_earth(void){
     Vec3 L0 = compute_angular_momentum(s->universe);
     real L0_mag = vec3_norm(L0);
 
-    forces_integrate(s->universe, dt, steps, 2);
+    forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
 
     Vec3 Lf = compute_angular_momentum(s->universe);
     real Lf_mag = vec3_norm(Lf);
@@ -67,7 +67,7 @@ static int test_three_bodies(void){
 
     real d = 1.0e11;
     real mass = 1.0e30;
-    real v = sqrt(G * 3.0 * mass / (2.0 * d));
+    real v = sqrt(G * mass / d);
 
     s->universe->particles[0].mass = mass;
     s->universe->particles[0].position = (Vec3){d, 0.0, 0.0};
@@ -86,7 +86,7 @@ static int test_three_bodies(void){
     Vec3 L0 = compute_angular_momentum(s->universe);
     real L0_mag = vec3_norm(L0);
 
-    forces_integrate(s->universe, dt, steps, 2);
+    forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
 
     Vec3 Lf = compute_angular_momentum(s->universe);
     real Lf_mag = vec3_norm(Lf);

@@ -8,12 +8,6 @@
 extern "C" {
 #endif
 
-typedef enum{
-    INTEGRATOR_EULER,
-    INTEGRATOR_EULER_SEMIIMPLICIT,
-    INTEGRATOR_VERLET
-} IntegratorType;
-
 typedef struct{
     Universe *universe;
     real dt;

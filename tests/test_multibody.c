@@ -46,7 +46,7 @@ static int test_three_body_conservation(void){
     printf("  E0 = %.15e J\n", e0);
     printf("  |p0| = %.15e kg·m/s\n\n", p0_mag);
 
-    forces_integrate(s->universe, dt, steps, 2);
+    forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
 
     real ef = simulation_total_energy(s);
     Vec3 pf = compute_linear_momentum(s->universe);
