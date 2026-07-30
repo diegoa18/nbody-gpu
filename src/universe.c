@@ -1,4 +1,5 @@
 #include "nbody/universe.h"
+#include "nbody/constants.h"
 #include <stdlib.h>
 
 Universe *universe_create(index_t n){
@@ -11,6 +12,8 @@ Universe *universe_create(index_t n){
         free(u);
         return NULL;
     }
+    u->theta = BH_THETA;
+    u->softening = SOFTENING;
 
     return u;
 }

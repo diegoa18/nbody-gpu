@@ -1,13 +1,14 @@
-#ifndef GPU_CONTEXT_H
-#define GPU_CONTEXT_H
+#ifndef NBODY_GPU_CONTEXT_H
+#define NBODY_GPU_CONTEXT_H
 
 #include "nbody/universe.h"
+#include "nbody/octree.h"
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BLOCK_SIZE 256
-#define TILE_SIZE  32
+#define NBODY_BLOCK_SIZE 256
+#define NBODY_TILE_SIZE  32
 
 #define CUDA_CHECK(call) do { \
     cudaError_t err = call; \
@@ -18,14 +19,22 @@
     } \
 } while(0)
 
-#define MALLOC_CHECK(ptr) do { \
-    if(!ptr){ \
-        fprintf(stderr, "malloc failed at %s:%d\n", __FILE__, __LINE__); \
-        exit(1); \
-    } \
-} while(0)
-
 typedef struct {
+    int *d_boundary;
+    int *d_cell_idx;
+    uint64_t *d_morton;
+    uint64_t *d_morton_sorted;
+    index_t *d_identity;
+    index_t *d_sorted_to_orig;
+    OctreeNode *d_nodes;
+    int64_t *d_node_cell_ids;
+    size_t n;
+    size_t max_capacity;
+    size_t cub_temp_bytes;
+    void *d_cub_temp;
+} BHGPUState;
+
+typedef struct GPUContext_t {
     double *d_px, *d_py, *d_pz;
     double *d_vx, *d_vy, *d_vz;
     double *d_ax, *d_ay, *d_az;
@@ -36,15 +45,26 @@ typedef struct {
     double *h_mass;
     double G, SOFTENING;
     index_t allocated_n;
+    int use_bh;
+    int use_bh_explicit;
+    BHGPUState bh;
 } GPUContext;
 
 extern GPUContext gpu_ctx;
 
-int gpu_ctx_init(index_t n);
-void gpu_ctx_free(void);
-int gpu_ctx_upload(Universe *u);
-int gpu_ctx_download(Universe *u);
-void gpu_ctx_set_constants(double G, double softening);
-int launch_forces(index_t blocks, index_t n);
+int gpu_ctx_init(GPUContext *ctx, index_t n);
+void gpu_ctx_free(GPUContext *ctx);
+int gpu_ctx_upload(GPUContext *ctx, Universe *u);
+int gpu_ctx_download(GPUContext *ctx, Universe *u);
+void gpu_ctx_set_constants(GPUContext *ctx, double G, double softening);
+int launch_forces(GPUContext *ctx, index_t blocks, index_t n);
 
+#ifdef __cplusplus
+extern "C" {
 #endif
+void gpu_set_force_algorithm(GPUContext *ctx, int use_bh);
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* NBODY_GPU_CONTEXT_H */

@@ -9,11 +9,7 @@ extern "C" {
 
 typedef void (*ForceFunc)(Universe *u);
 
-int integrator_step(Universe *u, real dt, ForceFunc compute_forces);
-int integrator_step_semiimplicit(Universe *u, real dt, ForceFunc compute_forces);
 int integrator_step_verlet(Universe *u, real dt, ForceFunc compute_forces);
-int integrator_step_rk4(Universe *u, real dt, ForceFunc compute_forces);
-int integrator_step_leapfrog(Universe *u, real dt, ForceFunc compute_forces);
 
 #ifdef __cplusplus
 }

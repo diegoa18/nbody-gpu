@@ -1,27 +1,51 @@
-# Benchmark CPU vs GPU
-# Velocity Verlet, dt=0.01, 5 reps, warmup 10 steps
+# Benchmark results
+# Hardware: RTX 2050 (4GB, compute 8.6, 16 SMs), CPU unknown
+# Generated: post-Fase 6 (Barnes-Hut GPU completado)
 
-## Timing (seconds)
-| N     | CPU      | GPU      | Speedup |
-|-------|----------|----------|---------|
-| 100   | 0.0558   | 0.5210   | 0.11x   |
-| 200   | 0.2771   | 1.0443   | 0.27x   |
-| 500   | 1.0075   | 1.4082   | 0.71x   |
-| 1000  | 1.4809   | 1.2302   | 1.20x   |
-| 2000  | 2.3840   | 1.3508   | 1.77x   |
-| 5000  | 2.7996   | 1.3958   | 2.01x   |
-| 10000 | 5.5559   | 2.2667   | 2.45x   |
+## 1. CPU vs GPU — Direct Sum O(N²)
+# Velocity Verlet, dt=0.01, Plummer model, 5 reps
+# Steps varían por N para mantener tiempo de ejecución razonable
 
-## GFLOPS
-| N     | CPU   | GPU   |
-|-------|-------|-------|
-| 100   | 3.61  | 0.39  |
-| 200   | 2.90  | 0.77  |
-| 500   | 2.49  | 1.78  |
-| 1000  | 2.70  | 3.25  |
-| 2000  | 3.36  | 5.92  |
-| 5000  | 3.57  | 7.17  |
-| 10000 | 3.60  | 8.82  |
+| N     | steps | CPU (s) | GPU (s) | Speedup | CPU GFLOPS | GPU GFLOPS |
+|-------|-------|---------|---------|---------|------------|------------|
+| 100   | 1000  | 0.0834  | 0.5205  | 0.16x   | 2.42       | 0.39       |
+| 200   | 1000  | 0.3703  | 1.0707  | 0.35x   | 2.17       | 0.75       |
+| 500   | 500   | 1.1134  | 1.4339  | 0.78x   | 2.25       | 1.75       |
+| 1000  | 200   | 1.4376  | 1.2420  | 1.16x   | 2.78       | 3.22       |
+| 2000  | 100   | 3.0821  | 1.3214  | 2.33x   | 2.60       | 6.06       |
+| 5000  | 20    | 0.2255  | 0.1333  | 1.69x   | 44.35      | 75.04      |
+| 10000 | 10    | 0.1956  | 0.0893  | 2.19x   | 102.28     | 223.93     |
 
-## Crossover
-N ≈ 800. Below: CPU faster (GPU overhead dominates). Above: GPU faster (parallelism amortizes).
+## 2. Barnes-Hut Benchmark (θ=0.7)
+# Plummer model, 3 reps, CUDA events para GPU, timer_cpu() para CPU
+# GPU direct: forces_kernel_tiled, GPU BH: sort-based octree + tree-walk
+# CPU BH: octree recursivo
+
+| N      | GPU direct (ms) | GPU BH (ms) | Speedup | CPU BH (ms) | BH error |
+|--------|-----------------|-------------|---------|-------------|----------|
+| 100    | 0.368           | 0.858       | 0.43x   | 0.111       | 7.85e-02 |
+| 500    | 1.843           | 3.358       | 0.55x   | 1.624       | 1.56e-01 |
+| 1000   | 3.629           | 4.428       | 0.82x   | 2.511       | 2.02e-01 |
+| 5000   | 35.734          | 9.958       | 3.59x   | 28.525      | 1.42e-01 |
+| 10000  | 72.198          | 19.480      | 3.71x   | 78.369      | 1.98e-01 |
+| 50000  | 2229.092        | 177.474     | 12.56x  | 631.036     | 1.46e-01 |
+| 100000 | 9810.613        | 363.496     | 26.99x  | 1571.234    | 1.62e-01 |
+
+## 3. Large-N Validation (N=50000, θ=0.0)
+# GPU BH vs GPU direct (theta=0, exact)
+# GPU BH vs CPU BH (cross-validation)
+# BH error en aceleraciones (max rel error)
+
+| Comparison           | Time (ms)  | Error     |
+|----------------------|------------|-----------|
+| GPU direct           | 1619.70    | —         |
+| GPU BH               | 1926.34    | 1.06e-13  |
+| CPU BH               | 125642.88  | 9.18e-14  |
+
+## 4. Observaciones
+- Crossover GPU direct vs CPU direct: ~N=800
+- Crossover GPU BH vs GPU direct: ~N=2000
+- GPU BH vs GPU direct speedup a N=100000: 26.99x
+- GPU BH vs CPU BH speedup a N=100000: 4.32x
+- GPU BH memory-bound a N pequeños (overhead de construcción del octree)
+- GPU BH compute-bound a N grandes (tree-walk domina)

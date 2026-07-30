@@ -9,8 +9,11 @@ extern "C" {
 
 void forces_compute(Universe *u);
 
+//fuerzas O(N log N) via Barnes-Hut (CPU)
+void forces_compute_bh(Universe *u);
+
 //corre N paso de integracion completamente en GPU
-int forces_integrate(Universe *u, real dt, index_t steps, IntegratorType integrator_type);
+int forces_integrate(Universe *u, real dt, index_t steps);
 
 #ifdef __cplusplus
 }

@@ -3,7 +3,7 @@
 #include "nbody/forces.h"
 #include <stdio.h>
 #include <math.h>
-#include <float.h>
+
 
 /*
  * test_equivalence — equivalencia numérica CPU vs GPU
@@ -59,7 +59,7 @@ static void print_particle_state(Universe *u){
     }
 }
 
-int main(void){
+int test_equivalence(void){
     int fails = 0;
 
     /* test 1: N=2, 100 pasos — sol-earth via forces_integrate */
@@ -70,9 +70,8 @@ int main(void){
         if(!s) return 1;
 
         setup_sun_earth(s->universe);
-        s->integrator = INTEGRATOR_VERLET;
 
-        forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
+        forces_integrate(s->universe, dt, steps);
 
         printf("[N=2, steps=100, verlet]\n");
         print_particle_state(s->universe);
@@ -91,9 +90,8 @@ int main(void){
         if(!s) return 1;
 
         setup_n_body(s->universe, 10);
-        s->integrator = INTEGRATOR_VERLET;
 
-        forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
+        forces_integrate(s->universe, dt, steps);
 
         printf("\n[N=10, steps=50, verlet]\n");
         print_particle_state(s->universe);
@@ -112,9 +110,8 @@ int main(void){
         if(!s) return 1;
 
         setup_n_body(s->universe, 100);
-        s->integrator = INTEGRATOR_VERLET;
 
-        forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
+        forces_integrate(s->universe, dt, steps);
 
         printf("\n[N=100, steps=10, verlet]\n");
         print_particle_state(s->universe);

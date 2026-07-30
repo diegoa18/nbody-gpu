@@ -20,13 +20,12 @@ static int test_100_years(void){
     if(!s) return 1;
 
     setup_sun_earth(s->universe);
-    s->integrator = INTEGRATOR_VERLET;
 
     real e0 = simulation_total_energy(s);
     real max_err = 0.0;
 
     for(index_t c = 0; c < chunks; c++){
-        forces_integrate(s->universe, dt, chunk_steps, INTEGRATOR_VERLET);
+        forces_integrate(s->universe, dt, chunk_steps);
 
         real e = simulation_total_energy(s);
         real err = fabs((e - e0) / e0);
@@ -51,7 +50,7 @@ static int test_100_years(void){
     return fails;
 }
 
-int main(void){
+int test_longterm(void){
     int total = 0;
 
     printf("[test_longterm]\n\n");

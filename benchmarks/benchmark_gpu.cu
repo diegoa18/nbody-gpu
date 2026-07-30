@@ -1,16 +1,8 @@
 #include "bench_utils.h"
-#include "nbody/forces.h"
-#include <cuda_runtime.h>
+#include "gpu_context.h"
 
 #define REPS 5
 #define WARMUP_STEPS 10
-
-static void check_cuda(cudaError_t err, const char *msg){
-    if(err != cudaSuccess){
-        fprintf(stderr, "cuda error: %s: %s\n", msg, cudaGetErrorString(err));
-        exit(1);
-    }
-}
 
 static void benchmark_n(index_t n, index_t steps){
     warmup_gpu(n, WARMUP_STEPS);
@@ -25,19 +17,18 @@ static void benchmark_n(index_t n, index_t steps){
             return;
         }
         init_random_particles(s);
-        s->integrator = INTEGRATOR_VERLET;
 
         cudaEvent_t start, stop;
-        check_cuda(cudaEventCreate(&start), "event create start");
-        check_cuda(cudaEventCreate(&stop), "event create stop");
+        CUDA_CHECK(cudaEventCreate(&start));
+        CUDA_CHECK(cudaEventCreate(&stop));
 
-        check_cuda(cudaEventRecord(start), "record start");
-        forces_integrate(s->universe, 0.01, steps, s->integrator);
-        check_cuda(cudaEventRecord(stop), "record stop");
-        check_cuda(cudaEventSynchronize(stop), "sync stop");
+        CUDA_CHECK(cudaEventRecord(start));
+        forces_integrate(s->universe, 0.01, steps);
+        CUDA_CHECK(cudaEventRecord(stop));
+        CUDA_CHECK(cudaEventSynchronize(stop));
 
         float ms = 0.0f;
-        check_cuda(cudaEventElapsedTime(&ms, start, stop), "elapsed time");
+        CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
         times[r] = ms / 1000.0;
 
         cudaEventDestroy(start);

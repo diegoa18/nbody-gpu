@@ -15,7 +15,7 @@ void forces_compute(Universe *u){
 
             Vec3 rij = vec3_sub(u->particles[j].position, u->particles[i].position);
             real dist2 = vec3_dot(rij, rij);
-            real d = sqrt(dist2 + SOFTENING * SOFTENING);
+            real d = sqrt(dist2 + u->softening * u->softening);
             real denom = d * d * d;
 
             u->particles[i].acceleration = vec3_add(
@@ -26,18 +26,9 @@ void forces_compute(Universe *u){
     }
 }
 
-//fallback CPU
-int forces_integrate(Universe *u, real dt, index_t steps, IntegratorType integrator_type){
-    ForceFunc f = forces_compute;
+int forces_integrate(Universe *u, real dt, index_t steps){
     for(index_t i = 0; i < steps; i++){
-        switch(integrator_type){
-            case INTEGRATOR_EULER:             integrator_step(u, dt, f); break;
-            case INTEGRATOR_EULER_SEMIIMPLICIT: integrator_step_semiimplicit(u, dt, f); break;
-            case INTEGRATOR_VERLET:            integrator_step_verlet(u, dt, f); break;
-            case INTEGRATOR_RK4:               integrator_step_rk4(u, dt, f); break;
-            case INTEGRATOR_LEAPFROG:          integrator_step_leapfrog(u, dt, f); break;
-            default:                           integrator_step_verlet(u, dt, f); break;
-        }
+        if(integrator_step_verlet(u, dt, forces_compute)) return 1;
     }
     return 0;
 }

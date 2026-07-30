@@ -11,6 +11,8 @@ extern "C" {
 typedef struct{
     index_t n;
     Particle *particles;
+    real theta; /* angulo BH */
+    real softening;
 } Universe;
 
 Universe *universe_create(index_t n);

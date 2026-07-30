@@ -6,7 +6,7 @@
 
 #define TOLERANCE 1e-10
 
-int main(void){
+int test_energy_conservation(void){
     index_t n = 2;
     real dt = 3600.0;
     index_t steps = 100;
@@ -16,10 +16,9 @@ int main(void){
     if(!s) return 1;
 
     setup_sun_earth(s->universe);
-    s->integrator = INTEGRATOR_VERLET;
     real e_initial = simulation_total_energy(s);
 
-    forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
+    forces_integrate(s->universe, dt, steps);
 
     real e_final = simulation_total_energy(s);
     real energy_err = fabs((e_final - e_initial) / e_initial);

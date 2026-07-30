@@ -1,5 +1,4 @@
 #include "nbody/simulation.h"
-#include "nbody/presets.h"
 #include "nbody/constants.h"
 #include "nbody/forces.h"
 #include <stdio.h>
@@ -10,13 +9,6 @@ vs referencia con dt muy fino.
 usamos diferencia vectorial |r_test - r_ref| para capturar
 errores de fase Y amplitud correctamente.
 referencia: dt_ref = dt_base / 1024*/
-
-typedef struct{
-    const char *name;
-    IntegratorType itype;
-    int expected_order;
-    double dt_orbit_factor;
-} IntegratorInfo;
 
 typedef struct{
     double x, y, z;
@@ -39,11 +31,11 @@ static void setup_eccentric(Universe *u){
     u->particles[1].velocity = (Vec3){0.0, v_p, 0.0};
 }
 
-static Vec3d run_sim(IntegratorType itype, double dt, index_t total_steps){
+static Vec3d run_sim(double dt, index_t total_steps){
     Universe *u = universe_create(2);
     setup_eccentric(u);
 
-    forces_integrate(u, dt, total_steps, itype);
+    forces_integrate(u, dt, total_steps);
 
     Vec3d pos = {u->particles[1].position.x,
                  u->particles[1].position.y,
@@ -53,7 +45,7 @@ static Vec3d run_sim(IntegratorType itype, double dt, index_t total_steps){
     return pos;
 }
 
-static int test_convergence(IntegratorInfo *info){
+static int test_convergence(double dt_orbit_factor, int expected_order){
     int fails = 0;
 
     double M_sun = 1.989e30;
@@ -62,12 +54,11 @@ static int test_convergence(IntegratorInfo *info){
     double T_orbit = 2.0 * M_PI / omega;
     double T_sim = T_orbit;
 
-    double dt_base = T_orbit / info->dt_orbit_factor;
+    double dt_base = T_orbit / dt_orbit_factor;
 
-    /*referencia con dt muy fino */
     double dt_ref = dt_base / 1024.0;
     index_t steps_ref = (index_t)(T_sim / dt_ref);
-    Vec3d ref = run_sim(info->itype, dt_ref, steps_ref);
+    Vec3d ref = run_sim(dt_ref, steps_ref);
     printf("  reference: dt_ref=%.2e\n", dt_ref);
 
     double dts[5];
@@ -78,7 +69,7 @@ static int test_convergence(IntegratorInfo *info){
         dts[k] = dt_base / (1 << k);
         index_t steps = (index_t)(T_sim / dts[k]);
         if(steps < 4) steps = 4;
-        Vec3d pos = run_sim(info->itype, dts[k], steps);
+        Vec3d pos = run_sim(dts[k], steps);
         double dx = pos.x - ref.x;
         double dy = pos.y - ref.y;
         double dz = pos.z - ref.z;
@@ -108,12 +99,12 @@ static int test_convergence(IntegratorInfo *info){
 
     avg_order /= n_ratios;
     printf("\n  average order: %.2f (expected: %d)\n",
-           avg_order, info->expected_order);
+           avg_order, expected_order);
 
     double tol = 0.5;
-    if(fabs(avg_order - info->expected_order) > tol){
+    if(fabs(avg_order - expected_order) > tol){
         printf("  FAIL: order %.2f != %d ± %.1f\n",
-               avg_order, info->expected_order, tol);
+               avg_order, expected_order, tol);
         fails++;
     } else {
         printf("  PASS\n");
@@ -122,29 +113,14 @@ static int test_convergence(IntegratorInfo *info){
     return fails;
 }
 
-int main(void){
+int test_convergence_all(void){
     int total = 0;
 
-    printf("[test_convergence] (eccentric orbit e=0.5, vector error)\n\n");
+    printf("[test_convergence] (eccentric orbit e=0.5, vector error, velocity verlet)\n\n");
 
-    IntegratorInfo integrators[] = {
-        {"euler",              INTEGRATOR_EULER,              1, 200.0},
-        {"euler_semiimplicit", INTEGRATOR_EULER_SEMIIMPLICIT, 2, 200.0},
-        {"verlet",             INTEGRATOR_VERLET,             2,  50.0},
-        {"leapfrog",           INTEGRATOR_LEAPFROG,           2,  50.0},
-        {"rk4",                INTEGRATOR_RK4,                4,  10.0},
-    };
-    int n_integrators = sizeof(integrators) / sizeof(integrators[0]);
+    printf("1. verlet (expected order: 2, dt_base = T/50)\n");
+    total += test_convergence(50.0, 2);
 
-    for(int i = 0; i < n_integrators; i++){
-        printf("%d. %s (expected order: %d, dt_base = T/%.0f)\n",
-               i + 1, integrators[i].name,
-               integrators[i].expected_order,
-               integrators[i].dt_orbit_factor);
-        total += test_convergence(&integrators[i]);
-        printf("\n");
-    }
-
-    printf("%s (%d failures)\n", total == 0 ? "PASS" : "FAIL", total);
+    printf("\n%s (%d failures)\n", total == 0 ? "PASS" : "FAIL", total);
     return total;
 }

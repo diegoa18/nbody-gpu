@@ -1,4 +1,5 @@
 #include "bench_utils.h"
+#include <stdio.h>
 
 #define REPS 5
 #define WARMUP_STEPS 10
@@ -16,7 +17,6 @@ static void benchmark_n(index_t n, index_t steps){
             return;
         }
         init_random_particles(s);
-        s->integrator = INTEGRATOR_VERLET;
 
         struct timespec t_start, t_end;
         clock_gettime(CLOCK_MONOTONIC, &t_start);

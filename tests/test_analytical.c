@@ -8,7 +8,7 @@
 
 /*comparación contra solución analítica de Kepler
  * verificar la rotacion de la tierra*/
-static int test_kepler(void){
+static int test_kepler_sub(void){
     int fails = 0;
     real dt = 3600.0;
     real total_time = 365.25 * 24.0 * 3600.0;
@@ -27,7 +27,6 @@ static int test_kepler(void){
     if(!s) return 1;
 
     setup_sun_earth(s->universe);
-    s->integrator = INTEGRATOR_VERLET;
 
     simulation_run(s);
 
@@ -57,12 +56,12 @@ static int test_kepler(void){
     return fails;
 }
 
-int main(void){
+int test_kepler(void){
     int total = 0;
 
     printf("[test_analytical]\n\n");
     printf("1. kepler circular orbit (verlet, 1 year)\n");
-    total += test_kepler();
+    total += test_kepler_sub();
 
     printf("\n%s (%d failures)\n", total == 0 ? "PASS" : "FAIL", total);
     return total;

@@ -2,8 +2,7 @@
 #include "nbody/forces.h"
 #include "nbody/constants.h"
 
-/*kernel con shared memory tiling*/
-__global__ __launch_bounds__(BLOCK_SIZE, 2)
+__global__ __launch_bounds__(NBODY_BLOCK_SIZE, 2)
 void forces_kernel_tiled(double * __restrict__ px,
                                     double * __restrict__ py,
                                     double * __restrict__ pz,
@@ -12,10 +11,10 @@ void forces_kernel_tiled(double * __restrict__ px,
                                     double * __restrict__ az,
                                     double * __restrict__ mass,
                                     index_t n, double G, double SOFTENING){
-    __shared__ double s_px[TILE_SIZE];
-    __shared__ double s_py[TILE_SIZE];
-    __shared__ double s_pz[TILE_SIZE];
-    __shared__ double s_mass[TILE_SIZE];
+    __shared__ double s_px[NBODY_TILE_SIZE];
+    __shared__ double s_py[NBODY_TILE_SIZE];
+    __shared__ double s_pz[NBODY_TILE_SIZE];
+    __shared__ double s_mass[NBODY_TILE_SIZE];
 
     index_t i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -30,9 +29,9 @@ void forces_kernel_tiled(double * __restrict__ px,
         my_pz = pz[i];
     }
 
-    for(index_t tile = 0; tile < n; tile += TILE_SIZE){
+    for(index_t tile = 0; tile < n; tile += NBODY_TILE_SIZE){
         index_t tj = tile + threadIdx.x;
-        if(threadIdx.x < TILE_SIZE && tj < n){
+        if(threadIdx.x < NBODY_TILE_SIZE && tj < n){
             s_px[threadIdx.x] = px[tj];
             s_py[threadIdx.x] = py[tj];
             s_pz[threadIdx.x] = pz[tj];
@@ -40,7 +39,7 @@ void forces_kernel_tiled(double * __restrict__ px,
         }
         __syncthreads();
 
-        index_t tile_len = TILE_SIZE;
+        index_t tile_len = NBODY_TILE_SIZE;
         if(tile + tile_len > n) tile_len = n - tile;
 
         for(index_t j = 0; j < tile_len; j++){
@@ -68,11 +67,11 @@ void forces_kernel_tiled(double * __restrict__ px,
     }
 }
 
-int launch_forces(index_t blocks, index_t n){
-    forces_kernel_tiled<<<blocks, BLOCK_SIZE>>>(
-        gpu_ctx.d_px, gpu_ctx.d_py, gpu_ctx.d_pz,
-        gpu_ctx.d_ax, gpu_ctx.d_ay, gpu_ctx.d_az,
-        gpu_ctx.d_mass, n, gpu_ctx.G, gpu_ctx.SOFTENING);
+int launch_forces(GPUContext *ctx, index_t blocks, index_t n){
+    forces_kernel_tiled<<<blocks, NBODY_BLOCK_SIZE>>>(
+        ctx->d_px, ctx->d_py, ctx->d_pz,
+        ctx->d_ax, ctx->d_ay, ctx->d_az,
+        ctx->d_mass, n, ctx->G, ctx->SOFTENING);
     CUDA_CHECK(cudaDeviceSynchronize());
     return 0;
 }
@@ -81,13 +80,12 @@ void forces_compute(Universe *u){
     index_t n = u->n;
 
     if(gpu_ctx.allocated_n == 0 || gpu_ctx.allocated_n != n){
-        gpu_ctx_init(n);
-        gpu_ctx_upload(u);
+        gpu_ctx_init(&gpu_ctx, n);
+        gpu_ctx_upload(&gpu_ctx, u);
     }
 
-    gpu_ctx_set_constants(G, SOFTENING);
+    gpu_ctx_set_constants(&gpu_ctx, G, u->softening);
 
-    /*pos actualizadas por el integrador*/
     for(index_t i = 0; i < n; i++){
         gpu_ctx.h_px[i] = u->particles[i].position.x;
         gpu_ctx.h_py[i] = u->particles[i].position.y;
@@ -97,8 +95,8 @@ void forces_compute(Universe *u){
     CUDA_CHECK(cudaMemcpy(gpu_ctx.d_py, gpu_ctx.h_py, n * sizeof(double), cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(gpu_ctx.d_pz, gpu_ctx.h_pz, n * sizeof(double), cudaMemcpyHostToDevice));
 
-    index_t blocks = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    forces_kernel_tiled<<<blocks, BLOCK_SIZE>>>(gpu_ctx.d_px, gpu_ctx.d_py, gpu_ctx.d_pz,
+    index_t blocks = (n + NBODY_BLOCK_SIZE - 1) / NBODY_BLOCK_SIZE;
+    forces_kernel_tiled<<<blocks, NBODY_BLOCK_SIZE>>>(gpu_ctx.d_px, gpu_ctx.d_py, gpu_ctx.d_pz,
                                                 gpu_ctx.d_ax, gpu_ctx.d_ay, gpu_ctx.d_az,
                                                 gpu_ctx.d_mass, n, gpu_ctx.G, gpu_ctx.SOFTENING);
     CUDA_CHECK(cudaDeviceSynchronize());

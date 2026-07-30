@@ -3,7 +3,6 @@
 
 #include "nbody/simulation.h"
 #include "nbody/forces.h"
-#include <stdio.h>
 #include <math.h>
 #include <time.h>
 
@@ -64,7 +63,7 @@ static inline void warmup_gpu(index_t n, index_t steps){
     Simulation *s = simulation_create(n, 0.01, (real)steps * 0.01);
     if(!s) return;
     init_random_particles(s);
-    forces_integrate(s->universe, 0.01, steps, s->integrator);
+    forces_integrate(s->universe, 0.01, steps);
     simulation_destroy(s);
 }
 

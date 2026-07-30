@@ -1,7 +1,5 @@
 #include "nbody/simulation.h"
-#include "nbody/presets.h"
 #include "nbody/forces.h"
-#include "nbody/constants.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -37,8 +35,6 @@ static int test_three_body_conservation(void){
     s->universe->particles[2].position = (Vec3){7.786e11, 0.0, 0.0};
     s->universe->particles[2].velocity = (Vec3){0.0, 1.307e4, 0.0};
 
-    s->integrator = INTEGRATOR_VERLET;
-
     real e0 = simulation_total_energy(s);
     Vec3 p0 = compute_linear_momentum(s->universe);
     real p0_mag = vec3_norm(p0);
@@ -46,7 +42,7 @@ static int test_three_body_conservation(void){
     printf("  E0 = %.15e J\n", e0);
     printf("  |p0| = %.15e kg·m/s\n\n", p0_mag);
 
-    forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
+    forces_integrate(s->universe, dt, steps);
 
     real ef = simulation_total_energy(s);
     Vec3 pf = compute_linear_momentum(s->universe);
@@ -73,7 +69,7 @@ static int test_three_body_conservation(void){
     return fails;
 }
 
-int main(void){
+int test_multibody(void){
     int total = 0;
 
     printf("[test_multibody]\n\n");

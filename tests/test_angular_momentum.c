@@ -35,12 +35,11 @@ static int test_sun_earth(void){
     if(!s) return 1;
 
     setup_sun_earth(s->universe);
-    s->integrator = INTEGRATOR_VERLET;
 
     Vec3 L0 = compute_angular_momentum(s->universe);
     real L0_mag = vec3_norm(L0);
 
-    forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
+    forces_integrate(s->universe, dt, steps);
 
     Vec3 Lf = compute_angular_momentum(s->universe);
     real Lf_mag = vec3_norm(Lf);
@@ -81,12 +80,10 @@ static int test_three_bodies(void){
     s->universe->particles[2].position = (Vec3){-0.5 * d, -d * 0.866, 0.0};
     s->universe->particles[2].velocity = (Vec3){v * 0.866, -v * 0.5, 0.0};
 
-    s->integrator = INTEGRATOR_VERLET;
-
     Vec3 L0 = compute_angular_momentum(s->universe);
     real L0_mag = vec3_norm(L0);
 
-    forces_integrate(s->universe, dt, steps, INTEGRATOR_VERLET);
+    forces_integrate(s->universe, dt, steps);
 
     Vec3 Lf = compute_angular_momentum(s->universe);
     real Lf_mag = vec3_norm(Lf);
@@ -103,7 +100,7 @@ static int test_three_bodies(void){
     return fails;
 }
 
-int main(void){
+int test_angular_momentum(void){
     int total = 0;
 
     printf("[test_angular_momentum]\n\n");

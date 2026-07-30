@@ -1,31 +1,54 @@
-# GPU Kernel Profile ->x forces_kernel_tiled
-# Nsight Compute, N=1000, Velocity Verlet, 10 steps, dt=0.01
-# RTX 2050 (4GB, compute 8.6, 16 SMs)
+# GPU Kernel Profile
+# Hardware: RTX 2050 (4GB, compute 8.6, 16 SMs, FP64 1/64 de FP32)
 
-## Kernel: forces_kernel_tiled
+## 1. forces_kernel_tiled (Direct Sum O(N²))
+# Nsight Compute, N=1000, Velocity Verlet, 10 steps, dt=0.01
+
 Grid: (4, 1, 1)  Block: (256, 1, 1)
 
-### Compute
 Duration:           4.96 ms
 SM throughput:      22.48%
 FP64 utilization:   90.0%          (bottleneck)
-FP instructions:    576K fused, 352K non-fused (19% improvable via FMA)
-
-### Memory
 Memory throughput:  0.39%
-DRAM frequency:     5.89 GHz
-SM frequency:       832.49 MHz
+
+Achieved occupancy: 16.67%
+Theoretical max:    83.3%
+Blocks per SM:      1 (4 blocks / 16 SMs → 12 SMs idle)
 Shared memory stall: 91.8% of CPI (59.0 of 64.3 cycles/warp)
 
-### Occupancy
-Achieved:           16.67%
-Theoretical max:    83.3%
-Blocks per SM:      1 (4 blocks / 16 SMs -> 12 SMs idle)
-
 ### Bottleneck
-FP64 compute-bound at 90%. Memory at 0.39%.
-Grid too small: only 4 blocks for 16 SMs.
+FP64 compute-bound al 90% porque RTX 2050 tiene throughput FP64 = 1/64 de FP32.
+Grid de solo 4 bloques: 12 de 16 SMs quedan inactivos.
+Solución: aumentar TILE_SIZE o reducir BLOCK_SIZE para generar más bloques.
 
-## Kernels: integr_verlet_pos/vel
-Duration: <10 μs each (negligible)
-SM: 6-8%, FP64: 36-49%
+## 2. Kernels BH GPU (Sort-based Octree + Tree-walk)
+# Perfil estimado de Nsight Compute (benchmark indirecto)
+
+### Construcción del octree (varios kernels pequeños)
+- identity_kernel: trivial (asigna índice a cada partícula)
+- morton_kernel: compute-bound (FP64, 3x 21-bit quantization + interleave)
+- CUB radix sort: memory-bound, optimizado por CUB
+- compute_boundaries_kernel: memory-bound (scan de niveles)
+- inclusive_sum_kernel: memory-bound
+- build_nodes_kernel: memory-bound (escritura de nodos)
+- link_parents_kernel: compute-bound (binary search por celda)
+- compute_com_kernel: memory-bound (lectura de hijos, escritura COM)
+
+### Tree-walk (bh_walk_kernel)
+- Cada hilo recorre el árbol con stack explícito de 256 slots
+- Patrón de acceso irregular (scatter/gather en nodos)
+- Ocupancy limitada por register pressure (stack privado)
+- Divergencia de warp significativa (cada hilo recorre diferente)
+- Compute-bound para N grandes, memory-bound para N pequeños
+
+### Rendimiento observado (benchmark indirecto)
+| N      | BH build+walk (ms) | Direct (ms) | Speedup |
+|--------|--------------------|-------------|---------|
+| 100    | 0.858              | 0.368       | 0.43x   |
+| 1000   | 4.428              | 3.629       | 0.82x   |
+| 10000  | 19.480             | 72.198      | 3.71x   |
+| 50000  | 177.474            | 2229.092    | 12.56x  |
+| 100000 | 363.496            | 9810.613    | 26.99x  |
+
+BH overhead domina a N pequeños (construcción del octree ≈ 2-4 ms).
+A N grandes, tree-walk O(N log N) vence a directo O(N²).
