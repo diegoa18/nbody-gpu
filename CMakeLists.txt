@@ -10,6 +10,7 @@ set(COMMON_SOURCES
     src/integrator.c
     src/presets.c
     src/octree.c
+    src/io.c
     cpu/forces_bh.c
 )
 
@@ -28,6 +29,8 @@ set(VALIDATION_SOURCES
     tests/test_multibody.c
     tests/test_equivalence.c
     tests/test_convergence.c
+    tests/test_io.c
+    tests/test_trajectory.c
 )
 
 add_library(nbody_common OBJECT ${COMMON_SOURCES})

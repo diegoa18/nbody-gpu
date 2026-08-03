@@ -7,6 +7,8 @@ int test_longterm(void);
 int test_multibody(void);
 int test_equivalence(void);
 int test_convergence_all(void);
+int test_io(void);
+int test_trajectory(void);
 
 int main(void){
     int total = 0;
@@ -24,6 +26,8 @@ int main(void){
     total += test_multibody(); printf("\n");
     total += test_equivalence(); printf("\n");
     total += test_convergence_all(); printf("\n");
+    total += test_io(); printf("\n");
+    total += test_trajectory(); printf("\n");
 
     printf("\n%s (%d failures)\n", total == 0 ? "PASS" : "FAIL", total);
     return total;

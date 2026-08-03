@@ -1,9 +1,11 @@
 #include "nbody/simulation.h"
 #include "nbody/forces.h"
 #include "nbody/constants.h"
+#include "nbody/io.h"
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef NBODY_GPU
 struct GPUContext_t;
@@ -11,6 +13,14 @@ typedef struct GPUContext_t GPUContext;
 extern GPUContext gpu_ctx;
 void gpu_set_force_algorithm(GPUContext *ctx, int use_bh);
 #endif
+
+static void snapshot_dump(Simulation *s, index_t step){
+    char path[512];
+    snprintf(path, sizeof(path), "%s/snapshot_%06lu.nb",
+             s->snapshot_dir, (unsigned long)step);
+    if(snapshot_write(s->universe, s->current_time, s->dt, path) != 0)
+        fprintf(stderr, "aviso: no se pudo escribir snapshot %s\n", path);
+}
 
 Simulation *simulation_create(index_t n, real dt, real total_time){
     Simulation *s = malloc(sizeof(Simulation));
@@ -25,6 +35,8 @@ Simulation *simulation_create(index_t n, real dt, real total_time){
     s->dt = dt;
     s->total_time = total_time;
     s->current_time = 0.0;
+    s->snapshot_dir = NULL;
+    s->snapshot_every = 0;
 
     if(n >= BH_CROSSOVER_N){
         s->algorithm = FORCE_ALGORITHM_BH;
@@ -65,6 +77,15 @@ void simulation_set_softening(Simulation *s, real softening){
     s->universe->softening = softening;
 }
 
+int simulation_set_snapshot(Simulation *s, const char *dir, index_t every_steps){
+    if(!s || !dir || every_steps == 0) return 1;
+    free(s->snapshot_dir);
+    s->snapshot_dir = strdup(dir);
+    if(!s->snapshot_dir) return 1;
+    s->snapshot_every = every_steps;
+    return 0;
+}
+
 void simulation_step(Simulation *s){
     if(!integrator_step_verlet(s->universe, s->dt, s->force_func))
         s->current_time += s->dt;
@@ -75,15 +96,37 @@ void simulation_run(Simulation *s){
     long raw_steps = lround((s->total_time - s->current_time) / s->dt);
     if(raw_steps > 0){
         index_t steps = (index_t)raw_steps;
-        if(forces_integrate(s->universe, s->dt, steps)){
+
+        if(s->snapshot_every > 0){
+            index_t step = 0;
+            while(step < steps){
+                index_t chunk = steps - step;
+                if(chunk > s->snapshot_every) chunk = s->snapshot_every;
+
+                if(forces_integrate(s->universe, s->dt, chunk)){
+                    fprintf(stderr, "error: forces_integrate failed\n");
+                    return;
+                }
+                step += chunk;
+                s->current_time += (real)chunk * s->dt;
+                snapshot_dump(s, step);
+            }
+        }
+        else if(forces_integrate(s->universe, s->dt, steps)){
             fprintf(stderr, "error: forces_integrate failed\n");
             return;
         }
-        s->current_time += (real)steps * s->dt;
+        else{
+            s->current_time += (real)steps * s->dt;
+        }
     }
 #else
+    index_t step = 0;
     while(s->current_time < s->total_time){
         simulation_step(s);
+        step++;
+        if(s->snapshot_every > 0 && step % s->snapshot_every == 0)
+            snapshot_dump(s, step);
     }
 #endif
 }
@@ -91,6 +134,7 @@ void simulation_run(Simulation *s){
 void simulation_destroy(Simulation *s){
     if(!s) return;
     universe_destroy(s->universe);
+    free(s->snapshot_dir);
     free(s);
 }
 

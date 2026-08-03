@@ -20,12 +20,17 @@ typedef struct{
     real current_time;
     ForceFunc force_func;
     ForceAlgorithm algorithm;
+    char *snapshot_dir;
+    index_t snapshot_every;
 } Simulation;
 
 Simulation *simulation_create(index_t n, real dt, real total_time);
 void simulation_set_algorithm(Simulation *s, ForceAlgorithm algo);
 void simulation_set_theta(Simulation *s, real theta);
 void simulation_set_softening(Simulation *s, real softening);
+/* habilita el dump de snapshots cada every_steps pasos en dir.
+ * retorna 0 en exito, != 0 si los argumentos son invalidos */
+int simulation_set_snapshot(Simulation *s, const char *dir, index_t every_steps);
 void simulation_step(Simulation *s);
 void simulation_run(Simulation *s);
 void simulation_destroy(Simulation *s);

@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 static void print_usage(const char *prog){
     printf("uso: %s [opciones]\n", prog);
@@ -14,6 +16,16 @@ static void print_usage(const char *prog){
     printf("  --softening <valor>                 softening gravitacional (default: preset-specific)\n");
     printf("  --dt <valor>                        paso temporal en segundos (default: 3600)\n");
     printf("  --time <valor>                      tiempo total en segundos (default: 1 year)\n");
+    printf("  --dump <dir>                        escribe snapshots en <dir> (default: off)\n");
+    printf("  --snapshot-every <k>                un snapshot cada k pasos (default: 100)\n");
+}
+
+static int ensure_dir(const char *path){
+    if(mkdir(path, 0755) != 0 && errno != EEXIST){
+        fprintf(stderr, "error: no se pudo crear el directorio '%s'\n", path);
+        return 1;
+    }
+    return 0;
 }
 
 int main(int argc, char **argv){
@@ -24,6 +36,8 @@ int main(int argc, char **argv){
     double user_softening = -1.0;
     double dt = 3600.0;
     double total_time = 365.25 * 24.0 * 3600.0;
+    const char *dump_dir = NULL;
+    index_t snapshot_every = 100;
 
     for(int i = 1; i < argc; i++){
         if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0){
@@ -44,6 +58,10 @@ int main(int argc, char **argv){
             dt = atof(argv[++i]);
         else if(strcmp(argv[i], "--time") == 0 && i + 1 < argc)
             total_time = atof(argv[++i]);
+        else if(strcmp(argv[i], "--dump") == 0 && i + 1 < argc)
+            dump_dir = argv[++i];
+        else if(strcmp(argv[i], "--snapshot-every") == 0 && i + 1 < argc)
+            snapshot_every = (index_t)atol(argv[++i]);
         else{
             fprintf(stderr, "error: argumento desconocido '%s'\n", argv[i]);
             print_usage(argv[0]);
@@ -113,6 +131,20 @@ int main(int argc, char **argv){
     if(user_softening >= 0)
         simulation_set_softening(s, (real)user_softening);
     simulation_set_theta(s, (real)theta);
+
+    if(dump_dir){
+        if(ensure_dir(dump_dir) != 0){
+            simulation_destroy(s);
+            return 1;
+        }
+        if(simulation_set_snapshot(s, dump_dir, snapshot_every) != 0){
+            fprintf(stderr, "error: configuracion de snapshots invalida\n");
+            simulation_destroy(s);
+            return 1;
+        }
+        printf("snapshots: %s (cada %lu pasos)\n",
+               dump_dir, (unsigned long)snapshot_every);
+    }
 
     real e0 = simulation_total_energy(s);
     simulation_run(s);
