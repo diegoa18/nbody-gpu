@@ -10,10 +10,6 @@ usamos diferencia vectorial |r_test - r_ref| para capturar
 errores de fase Y amplitud correctamente.
 referencia: dt_ref = dt_base / 1024*/
 
-typedef struct{
-    double x, y, z;
-} Vec3d;
-
 static void setup_eccentric(Universe *u){
     double M_sun = 1.989e30;
     double M_earth = 5.972e24;
@@ -31,15 +27,15 @@ static void setup_eccentric(Universe *u){
     u->particles[1].velocity = (Vec3){0.0, v_p, 0.0};
 }
 
-static Vec3d run_sim(double dt, index_t total_steps){
+static Vec3 run_sim(double dt, index_t total_steps){
     Universe *u = universe_create(2);
     setup_eccentric(u);
 
     forces_integrate(u, dt, total_steps);
 
-    Vec3d pos = {u->particles[1].position.x,
-                 u->particles[1].position.y,
-                 u->particles[1].position.z};
+    Vec3 pos = {u->particles[1].position.x,
+                u->particles[1].position.y,
+                u->particles[1].position.z};
 
     universe_destroy(u);
     return pos;
@@ -58,7 +54,7 @@ static int test_convergence(double dt_orbit_factor, int expected_order){
 
     double dt_ref = dt_base / 1024.0;
     index_t steps_ref = (index_t)(T_sim / dt_ref);
-    Vec3d ref = run_sim(dt_ref, steps_ref);
+    Vec3 ref = run_sim(dt_ref, steps_ref);
     printf("  reference: dt_ref=%.2e\n", dt_ref);
 
     double dts[5];
@@ -69,7 +65,7 @@ static int test_convergence(double dt_orbit_factor, int expected_order){
         dts[k] = dt_base / (1 << k);
         index_t steps = (index_t)(T_sim / dts[k]);
         if(steps < 4) steps = 4;
-        Vec3d pos = run_sim(dts[k], steps);
+        Vec3 pos = run_sim(dts[k], steps);
         double dx = pos.x - ref.x;
         double dy = pos.y - ref.y;
         double dz = pos.z - ref.z;

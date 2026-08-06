@@ -1,8 +1,70 @@
-#include "test_utils.h"
-#include "gpu_test_utils.h"
+#include "gpu_context.h"
+#include "forces_bh.h"
+#include "nbody/forces.h"
 #include "nbody/presets.h"
+#include "nbody/constants.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <time.h>
+
+static inline double timer_cpu(void){
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec * 1e-9;
+}
+
+static inline double max_rel_err(Universe *ref, Universe *test){
+    double max_err = 0.0;
+    for(index_t i = 0; i < ref->n; i++){
+        double dx = ref->particles[i].acceleration.x - test->particles[i].acceleration.x;
+        double dy = ref->particles[i].acceleration.y - test->particles[i].acceleration.y;
+        double dz = ref->particles[i].acceleration.z - test->particles[i].acceleration.z;
+        double mag = sqrt(ref->particles[i].acceleration.x * ref->particles[i].acceleration.x +
+                          ref->particles[i].acceleration.y * ref->particles[i].acceleration.y +
+                          ref->particles[i].acceleration.z * ref->particles[i].acceleration.z);
+        double local_err = sqrt(dx*dx + dy*dy + dz*dz);
+        if(mag > 1e-30){
+            double rel = local_err / mag;
+            if(rel > max_err) max_err = rel;
+        }
+    }
+    return max_err;
+}
+
+static inline void gpu_direct_forces(Universe *u){
+    index_t n = u->n;
+    gpu_ctx_init(&gpu_ctx, n);
+    gpu_ctx_upload(&gpu_ctx, u);
+    gpu_ctx_set_constants(&gpu_ctx, G, u->softening);
+    index_t blocks = (n + NBODY_BLOCK_SIZE - 1) / NBODY_BLOCK_SIZE;
+    launch_forces(&gpu_ctx, blocks, n);
+    cudaMemcpy(gpu_ctx.h_ax, gpu_ctx.d_ax, n * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(gpu_ctx.h_ay, gpu_ctx.d_ay, n * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(gpu_ctx.h_az, gpu_ctx.d_az, n * sizeof(double), cudaMemcpyDeviceToHost);
+    for(index_t i = 0; i < n; i++){
+        u->particles[i].acceleration.x = gpu_ctx.h_ax[i];
+        u->particles[i].acceleration.y = gpu_ctx.h_ay[i];
+        u->particles[i].acceleration.z = gpu_ctx.h_az[i];
+    }
+}
+
+static inline void gpu_bh_forces(Universe *u, double theta){
+    index_t n = u->n;
+    gpu_ctx_init(&gpu_ctx, n);
+    forces_bh_gpu_init(&gpu_ctx, n);
+    gpu_ctx_upload(&gpu_ctx, u);
+    gpu_ctx_set_constants(&gpu_ctx, G, u->softening);
+    forces_bh_build_and_compute(&gpu_ctx, n, G, u->softening, theta);
+    cudaMemcpy(gpu_ctx.h_ax, gpu_ctx.d_ax, n * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(gpu_ctx.h_ay, gpu_ctx.d_ay, n * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(gpu_ctx.h_az, gpu_ctx.d_az, n * sizeof(double), cudaMemcpyDeviceToHost);
+    for(index_t i = 0; i < n; i++){
+        u->particles[i].acceleration.x = gpu_ctx.h_ax[i];
+        u->particles[i].acceleration.y = gpu_ctx.h_ay[i];
+        u->particles[i].acceleration.z = gpu_ctx.h_az[i];
+    }
+}
 
 
 static double measure_gpu_direct(Universe *u, int reps){

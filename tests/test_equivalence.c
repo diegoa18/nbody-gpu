@@ -10,9 +10,6 @@
  *
  * Ejecuta N pasos via forces_integrate (la ruta principal de GPU)
  * con las mismas condiciones iniciales en ambos backends.
- * Compilar como test_equivalence (CPU) y test_equivalence_gpu (GPU),
- * luego comparar: diff <(./build/test_equivalence) <(./build/test_equivalence_gpu)
- *
  * Deben producir resultados idénticos (mismas bit patterns)
  * porque la fórmula de fuerza está unificada.
  *

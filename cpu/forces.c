@@ -28,7 +28,7 @@ void forces_compute(Universe *u){
 
 int forces_integrate(Universe *u, real dt, index_t steps){
     for(index_t i = 0; i < steps; i++){
-        if(integrator_step_verlet(u, dt, forces_compute)) return 1;
+        if(integrator_step_verlet(u, dt, u->force_func)) return 1;
     }
     return 0;
 }

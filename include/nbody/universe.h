@@ -8,12 +8,16 @@
 extern "C" {
 #endif
 
-typedef struct{
+typedef struct Universe Universe;
+typedef void (*ForceFunc)(Universe *u);
+
+struct Universe{
     index_t n;
     Particle *particles;
     real theta; /* angulo BH */
     real softening;
-} Universe;
+    ForceFunc force_func; /* algoritmo de fuerzas activo */
+};
 
 Universe *universe_create(index_t n);
 void universe_destroy(Universe *u);

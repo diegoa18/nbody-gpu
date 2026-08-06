@@ -46,7 +46,6 @@ typedef struct GPUContext_t {
     double G, SOFTENING;
     index_t allocated_n;
     int use_bh;
-    int use_bh_explicit;
     BHGPUState bh;
 } GPUContext;
 

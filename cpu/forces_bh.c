@@ -31,6 +31,16 @@ static void tree_walk(OctreePool *pool, int node_idx,
         return;
     }
 
+    /* nodo a maxima profundidad: cluster sin hijos, usar su com */
+    int has_children = 0;
+    for(int c = 0; c < 8; c++){
+        if(node->children[c] >= 0){ has_children = 1; break; }
+    }
+    if(!has_children){
+        accumulate_force(u, target, node);
+        return;
+    }
+
     double dx = node->com[0] - u->particles[target].position.x;
     double dy = node->com[1] - u->particles[target].position.y;
     double dz = node->com[2] - u->particles[target].position.z;

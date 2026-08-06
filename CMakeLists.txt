@@ -74,7 +74,7 @@ target_link_libraries(benchmark_gpu PRIVATE m nbody_cuda)
 add_executable(benchmark_bh benchmarks/benchmark_bh.cu
     $<TARGET_OBJECTS:nbody_common>
     $<TARGET_OBJECTS:nbody_sim_gpu>)
-target_include_directories(benchmark_bh PRIVATE include cuda tests)
+target_include_directories(benchmark_bh PRIVATE include cuda)
 target_link_libraries(benchmark_bh PRIVATE m nbody_cuda)
 
 add_executable(test_cpu tests/test_main.c cpu/forces.c

@@ -40,10 +40,10 @@ Simulation *simulation_create(index_t n, real dt, real total_time){
 
     if(n >= BH_CROSSOVER_N){
         s->algorithm = FORCE_ALGORITHM_BH;
-        s->force_func = forces_compute_bh;
+        s->universe->force_func = forces_compute_bh;
     } else {
         s->algorithm = FORCE_ALGORITHM_DIRECT;
-        s->force_func = forces_compute;
+        s->universe->force_func = forces_compute;
     }
 
 #ifdef NBODY_GPU
@@ -57,11 +57,11 @@ void simulation_set_algorithm(Simulation *s, ForceAlgorithm algo){
     s->algorithm = algo;
     switch(algo){
         case FORCE_ALGORITHM_BH:
-            s->force_func = forces_compute_bh;
+            s->universe->force_func = forces_compute_bh;
             break;
         case FORCE_ALGORITHM_DIRECT:
         default:
-            s->force_func = forces_compute;
+            s->universe->force_func = forces_compute;
             break;
     }
 #ifdef NBODY_GPU
@@ -87,11 +87,14 @@ int simulation_set_snapshot(Simulation *s, const char *dir, index_t every_steps)
 }
 
 void simulation_step(Simulation *s){
-    if(!integrator_step_verlet(s->universe, s->dt, s->force_func))
+    if(!integrator_step_verlet(s->universe, s->dt, s->universe->force_func))
         s->current_time += s->dt;
 }
 
 void simulation_run(Simulation *s){
+    if(s->snapshot_every > 0)
+        snapshot_dump(s, 0);
+
 #ifdef NBODY_GPU
     long raw_steps = lround((s->total_time - s->current_time) / s->dt);
     if(raw_steps > 0){

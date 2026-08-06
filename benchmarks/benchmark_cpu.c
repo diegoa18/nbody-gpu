@@ -16,6 +16,7 @@ static void benchmark_n(index_t n, index_t steps){
             printf("error: failed to create simulation for n=%lu\n", (unsigned long)n);
             return;
         }
+        simulation_set_algorithm(s, FORCE_ALGORITHM_DIRECT);
         init_random_particles(s);
 
         struct timespec t_start, t_end;

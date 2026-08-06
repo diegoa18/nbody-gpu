@@ -7,6 +7,9 @@
 #include <errno.h>
 #include <sys/stat.h>
 
+/* umbral de n para el reporte de energia (la energia potencial es O(N^2)) */
+#define ENERGY_REPORT_MAX_N 20000
+
 static void print_usage(const char *prog){
     printf("uso: %s [opciones]\n", prog);
     printf("  --preset <sun_earth|plummer|random>  configuracion inicial (default: sun_earth)\n");
@@ -18,6 +21,7 @@ static void print_usage(const char *prog){
     printf("  --time <valor>                      tiempo total en segundos (default: 1 year)\n");
     printf("  --dump <dir>                        escribe snapshots en <dir> (default: off)\n");
     printf("  --snapshot-every <k>                un snapshot cada k pasos (default: 100)\n");
+    printf("  --energy                            reporte de energia aunque n sea grande (default: off)\n");
 }
 
 static int ensure_dir(const char *path){
@@ -38,6 +42,7 @@ int main(int argc, char **argv){
     double total_time = 365.25 * 24.0 * 3600.0;
     const char *dump_dir = NULL;
     index_t snapshot_every = 100;
+    int energy_report = 0;
 
     for(int i = 1; i < argc; i++){
         if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0){
@@ -62,6 +67,8 @@ int main(int argc, char **argv){
             dump_dir = argv[++i];
         else if(strcmp(argv[i], "--snapshot-every") == 0 && i + 1 < argc)
             snapshot_every = (index_t)atol(argv[++i]);
+        else if(strcmp(argv[i], "--energy") == 0)
+            energy_report = 1;
         else{
             fprintf(stderr, "error: argumento desconocido '%s'\n", argv[i]);
             print_usage(argv[0]);
@@ -146,13 +153,21 @@ int main(int argc, char **argv){
                dump_dir, (unsigned long)snapshot_every);
     }
 
-    real e0 = simulation_total_energy(s);
-    simulation_run(s);
-    real ef = simulation_total_energy(s);
+    real e0 = 0.0;
+    if(energy_report || n <= ENERGY_REPORT_MAX_N)
+        e0 = simulation_total_energy(s);
 
-    printf("energy initial: %.6e J\n", e0);
-    printf("energy final:   %.6e J\n", ef);
-    printf("energy error:   %+.6f%%\n", (ef - e0) / e0 * 100.0);
+    simulation_run(s);
+
+    if(energy_report || n <= ENERGY_REPORT_MAX_N){
+        real ef = simulation_total_energy(s);
+        printf("energy initial: %.6e J\n", e0);
+        printf("energy final:   %.6e J\n", ef);
+        printf("energy error:   %+.6f%%\n", (ef - e0) / e0 * 100.0);
+    } else {
+        printf("energy report: skipped (n=%lu > %d, use --energy)\n",
+               (unsigned long)n, ENERGY_REPORT_MAX_N);
+    }
 
     simulation_destroy(s);
     return 0;

@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-typedef void (*ForceFunc)(Universe *u);
-
 int integrator_step_verlet(Universe *u, real dt, ForceFunc compute_forces);
 
 #ifdef __cplusplus

@@ -1,5 +1,4 @@
 #include "gpu_context.h"
-#include "nbody/constants.h"
 
 GPUContext gpu_ctx = {};
 
@@ -30,14 +29,11 @@ int gpu_ctx_init(GPUContext *ctx, index_t n){
     CUDA_CHECK(cudaMallocHost(&ctx->h_mass, n * sizeof(double)));
 
     ctx->allocated_n = n;
-    if(!ctx->use_bh_explicit)
-        ctx->use_bh = (n >= BH_CROSSOVER_N);
     return 0;
 }
 
 extern "C" void gpu_set_force_algorithm(GPUContext *ctx, int use_bh){
     ctx->use_bh = use_bh;
-    ctx->use_bh_explicit = 1;
 }
 
 void gpu_ctx_free(GPUContext *ctx){

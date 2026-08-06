@@ -18,7 +18,6 @@ typedef struct{
     real dt;
     real total_time;
     real current_time;
-    ForceFunc force_func;
     ForceAlgorithm algorithm;
     char *snapshot_dir;
     index_t snapshot_every;
