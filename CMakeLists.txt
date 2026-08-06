@@ -102,3 +102,22 @@ add_executable(test_large_n tests/test_large_n.cu
     $<TARGET_OBJECTS:nbody_sim_gpu>)
 target_include_directories(test_large_n PRIVATE include cuda)
 target_link_libraries(test_large_n PRIVATE m nbody_cuda)
+
+add_executable(nbody_render tools/render_main.c tools/render.c
+    $<TARGET_OBJECTS:nbody_common>
+    cpu/forces.c)
+target_include_directories(nbody_render PRIVATE include tools)
+target_link_libraries(nbody_render PRIVATE m)
+
+add_executable(test_render tests/test_render.c tools/render.c
+    $<TARGET_OBJECTS:nbody_common>
+    cpu/forces.c)
+target_include_directories(test_render PRIVATE include tools)
+target_link_libraries(test_render PRIVATE m)
+
+enable_testing()
+add_test(NAME test_cpu COMMAND test_cpu)
+add_test(NAME test_gpu COMMAND test_gpu)
+add_test(NAME test_bh_gpu COMMAND test_bh_gpu)
+add_test(NAME test_large_n_small COMMAND test_large_n 1000)
+add_test(NAME test_render COMMAND test_render)
