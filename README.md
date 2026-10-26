@@ -1,0 +1,14 @@
+# N-Body Gravitational Simulator
+
+This project is a high-performance, GPU-accelerated astrophysical N-body simulator written in C11 and CUDA. It is designed as a rigorous scientific engine to model gravitational dynamics—from planetary systems to stellar clusters—focusing strictly on the intersection of theoretical physics and computational optimization. 
+
+### Theoretical Framework
+At its core, the simulator solves the classic Newtonian N-body problem, calculating the gravitational interactions between massive particles in three-dimensional space. Because standard numerical integration inherently drifts over time, this engine employs a **Yoshida 4th-order symplectic integrator**. Unlike traditional methods like Runge-Kutta, symplectic integrators are designed to exactly preserve the Hamiltonian structure (the phase-space volume) of the system. By evaluating the forces through highly specific fractional time steps, the Yoshida model achieves O(Δt^4) global error while strictly conserving total energy and angular momentum over cosmic timescales, a non-negotiable requirement for stable orbital mechanics.
+
+### Computational Architecture
+To overcome the unscalable O(N²) complexity of direct gravitational summation, the engine implements the **Barnes-Hut algorithm**, reducing the problem to O(N log N) through spatial partitioning. On the GPU, this is achieved by mapping the 3D space into a 63-bit Morton code (Z-order curve) and building an Octree via parallel Radix sorts. This specific data structure allows for a warp-collaborative tree walk: because particles are strictly ordered by spatial locality, the 32 threads in a CUDA warp travel down the same branches of the tree simultaneously. This eliminates branch divergence and guarantees fully coalesced global memory accesses, pushing the hardware to its absolute theoretical limits in FP64 arithmetic.
+
+### Evolution and Next Steps
+The simulator is in active development, continuously validated against analytical models, conservation limits, and vector error convergence. The immediate architectural evolution focuses on two fronts:
+1. **Theoretical:** Upgrading the Octree nodes from pure monopoles (treating clusters as point masses) to include the traceless quadrupole tensor. This flattens the multipole expansion error from O(θ²) to O(θ³), allowing for highly asymmetric structures (like galactic mergers) to be simulated with extreme fidelity.
+2. **Computational:** Implementing scientifically viable mixed-precision arithmetic. By evaluating relative spatial distances and 1/r^(3/2) factors using FP32 hardware intrinsics, while accumulating the final forces and executing the Yoshida integration in strict FP64, the engine will bypass the inherent double-precision bottlenecks of consumer GPUs without compromising physical conservation laws.
