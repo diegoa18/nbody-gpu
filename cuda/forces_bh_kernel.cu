@@ -123,21 +123,10 @@ __global__ void create_nodes_kernel(const uint64_t * __restrict__ morton_sorted,
         node->com[2] = pz[orig];
     } else {
         node->particle_index = -1;
-        double tm = 0.0, cx = 0.0, cy = 0.0, cz = 0.0;
-        for(index_t j = start; j < end; j++){
-            index_t orig = sorted_to_orig[j];
-            double m = mass[orig];
-            tm += m;
-            cx += px[orig] * m;
-            cy += py[orig] * m;
-            cz += pz[orig] * m;
-        }
-        node->total_mass = tm;
-        if(tm > 0.0){
-            node->com[0] = cx / tm;
-            node->com[1] = cy / tm;
-            node->com[2] = cz / tm;
-        }
+        node->total_mass = 0.0;
+        node->com[0] = 0.0;
+        node->com[1] = 0.0;
+        node->com[2] = 0.0;
     }
 }
 
@@ -225,9 +214,12 @@ __global__ void bh_force_kernel(const OctreeNode * __restrict__ nodes,
                                 double * __restrict__ ax,
                                 double * __restrict__ ay,
                                 double * __restrict__ az,
+                                const index_t * __restrict__ sorted_to_orig,
                                 index_t n, double G, double softening, double theta){
-    index_t i = blockIdx.x * blockDim.x + threadIdx.x;
-    if(i >= n) return;
+    index_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if(tid >= n) return;
+
+    index_t i = sorted_to_orig[tid];
 
     double aax = 0.0, aay = 0.0, aaz = 0.0;
     double my_px = px[i], my_py = py[i], my_pz = pz[i];
@@ -265,7 +257,9 @@ __global__ void bh_force_kernel(const OctreeNode * __restrict__ nodes,
         double d2 = dx*dx + dy*dy + dz*dz;
         double s = node->half_width * 2.0;
 
-        if(s * s < theta * theta * d2 + 1e-30){
+        double d2_soft = d2 + softening * softening;
+
+        if(s * s < theta * theta * d2_soft + 1e-30){
             bh_acc_force(node, my_px, my_py, my_pz,
                          &aax, &aay, &aaz, G, softening);
             continue;
@@ -482,6 +476,7 @@ int forces_bh_build_and_compute(GPUContext *ctx, index_t n, double G, double sof
         ctx->d_px, ctx->d_py, ctx->d_pz,
         ctx->d_mass,
         ctx->d_ax, ctx->d_ay, ctx->d_az,
+        bh->d_sorted_to_orig,
         n, G, softening, theta);
     CUDA_CHECK(cudaGetLastError());
 

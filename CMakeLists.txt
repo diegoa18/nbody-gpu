@@ -3,7 +3,8 @@ project(nbody LANGUAGES C CUDA)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CUDA_STANDARD 17)
-add_compile_options(-Wall -Wextra)
+add_compile_options(-Wall -Wextra -O3 -march=native)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -arch=sm_86 --use_fast_math")
 
 set(COMMON_SOURCES
     src/universe.c

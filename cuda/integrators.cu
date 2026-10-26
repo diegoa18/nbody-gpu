@@ -67,10 +67,9 @@ int forces_integrate(Universe *u, real dt, index_t steps){
     CUDA_CHECK(cudaMalloc(&d_a_old_y, n * sizeof(double)));
     CUDA_CHECK(cudaMalloc(&d_a_old_z, n * sizeof(double)));
 
+    rc = compute_forces(&gpu_ctx, blocks, n, u);
+    if(rc) return rc;
     for(index_t step = 0; step < steps; step++){
-        rc = compute_forces(&gpu_ctx, blocks, n, u);
-        if(rc) return rc;
-
         double *tmp;
         tmp = d_a_old_x; d_a_old_x = gpu_ctx.d_ax; gpu_ctx.d_ax = tmp;
         tmp = d_a_old_y; d_a_old_y = gpu_ctx.d_ay; gpu_ctx.d_ay = tmp;

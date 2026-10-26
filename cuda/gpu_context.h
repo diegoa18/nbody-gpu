@@ -8,7 +8,7 @@
 #include <stdlib.h>
 
 #define NBODY_BLOCK_SIZE 256
-#define NBODY_TILE_SIZE  32
+#define NBODY_TILE_SIZE  256
 
 #define CUDA_CHECK(call) do { \
     cudaError_t err = call; \

@@ -42,6 +42,7 @@ void forces_kernel_tiled(double * __restrict__ px,
         index_t tile_len = NBODY_TILE_SIZE;
         if(tile + tile_len > n) tile_len = n - tile;
 
+        #pragma unroll
         for(index_t j = 0; j < tile_len; j++){
             if(i == tile + j) continue;
 
