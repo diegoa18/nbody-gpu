@@ -45,6 +45,10 @@ static inline int compute_forces(GPUContext *ctx, index_t blocks, index_t n, Uni
     return launch_forces(ctx, blocks, n);
 }
 
+// Magic Yoshida constants lol
+static const double W1 =  1.351207191959657;
+static const double W0 = -1.702414383919315; // W0 = 1 - 2*W1
+
 int forces_integrate(Universe *u, real dt, index_t steps){
     index_t n = u->n;
     index_t blocks = (n + NBODY_BLOCK_SIZE - 1) / NBODY_BLOCK_SIZE;
@@ -69,24 +73,28 @@ int forces_integrate(Universe *u, real dt, index_t steps){
 
     rc = compute_forces(&gpu_ctx, blocks, n, u);
     if(rc) return rc;
+
     for(index_t step = 0; step < steps; step++){
-        double *tmp;
-        tmp = d_a_old_x; d_a_old_x = gpu_ctx.d_ax; gpu_ctx.d_ax = tmp;
-        tmp = d_a_old_y; d_a_old_y = gpu_ctx.d_ay; gpu_ctx.d_ay = tmp;
-        tmp = d_a_old_z; d_a_old_z = gpu_ctx.d_az; gpu_ctx.d_az = tmp;
+        double dt_sub[3] = {W1 * dt, W0 * dt, W1 * dt};
+        for(int k=0; k<3; k++){
+            double *tmp;
+            tmp = d_a_old_x; d_a_old_x = gpu_ctx.d_ax; gpu_ctx.d_ax = tmp;
+            tmp = d_a_old_y; d_a_old_y = gpu_ctx.d_ay; gpu_ctx.d_ay = tmp;
+            tmp = d_a_old_z; d_a_old_z = gpu_ctx.d_az; gpu_ctx.d_az = tmp;
 
-        integr_verlet_pos_kernel<<<blocks, NBODY_BLOCK_SIZE>>>(
-            gpu_ctx.d_px, gpu_ctx.d_py, gpu_ctx.d_pz,
-            gpu_ctx.d_vx, gpu_ctx.d_vy, gpu_ctx.d_vz,
-            d_a_old_x, d_a_old_y, d_a_old_z, n, dt);
+            integr_verlet_pos_kernel<<<blocks, NBODY_BLOCK_SIZE>>>(
+                gpu_ctx.d_px, gpu_ctx.d_py, gpu_ctx.d_pz,
+                gpu_ctx.d_vx, gpu_ctx.d_vy, gpu_ctx.d_vz,
+                d_a_old_x, d_a_old_y, d_a_old_z, n, dt_sub[k]);
 
-        rc = compute_forces(&gpu_ctx, blocks, n, u);
-        if(rc) return rc;
+            rc = compute_forces(&gpu_ctx, blocks, n, u);
+            if(rc) return rc;
 
-        integr_verlet_vel_kernel<<<blocks, NBODY_BLOCK_SIZE>>>(
-            gpu_ctx.d_vx, gpu_ctx.d_vy, gpu_ctx.d_vz,
-            d_a_old_x, d_a_old_y, d_a_old_z,
-            gpu_ctx.d_ax, gpu_ctx.d_ay, gpu_ctx.d_az, n, dt);
+            integr_verlet_vel_kernel<<<blocks, NBODY_BLOCK_SIZE>>>(
+                gpu_ctx.d_vx, gpu_ctx.d_vy, gpu_ctx.d_vz,
+                d_a_old_x, d_a_old_y, d_a_old_z,
+                gpu_ctx.d_ax, gpu_ctx.d_ay, gpu_ctx.d_az, n, dt_sub[k]);
+        }
     }
 
     cudaFree(d_a_old_x);

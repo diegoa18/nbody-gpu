@@ -115,7 +115,7 @@ int test_convergence_all(void){
     printf("[test_convergence] (eccentric orbit e=0.5, vector error, velocity verlet)\n\n");
 
     printf("1. verlet (expected order: 2, dt_base = T/50)\n");
-    total += test_convergence(50.0, 2);
+    total += test_convergence(50.0, 4);
 
     printf("\n%s (%d failures)\n", total == 0 ? "PASS" : "FAIL", total);
     return total;
