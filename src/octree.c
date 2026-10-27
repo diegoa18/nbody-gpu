@@ -29,6 +29,7 @@ static int allocate_node(OctreePool *pool){
     n->num_particles = 0;
     n->total_mass = 0.0;
     n->com[0] = n->com[1] = n->com[2] = 0.0;
+    for(int i = 0; i < 6; i++) { n->Q[i] = 0.0; n->I[i] = 0.0; }
     for(int i = 0; i < 8; i++) n->children[i] = -1;
     return (int)idx;
 }
@@ -60,12 +61,12 @@ static int ensure_child(OctreePool *pool, OctreeNode *parent, int octant){
     return child;
 }
 
-//recalcular centro de masa y num_particles desde los hijos
 static void recompute_com(OctreePool *pool, int node_idx){
     OctreeNode *node = &pool->nodes[node_idx];
     double mass = 0.0;
     double cx = 0.0, cy = 0.0, cz = 0.0;
     int count = 0;
+    double I[6] = {0,0,0,0,0,0};
 
     for(int i = 0; i < 8; i++){
         int ci = node->children[i];
@@ -76,23 +77,39 @@ static void recompute_com(OctreePool *pool, int node_idx){
         cy += ch->com[1] * ch->total_mass;
         cz += ch->com[2] * ch->total_mass;
         count += ch->num_particles;
+        for(int k=0; k<6; k++) I[k] += ch->I[k];
     }
 
     node->total_mass = mass;
+    for(int k=0; k<6; k++) node->I[k] = I[k];
+
     if(mass > 0.0){
-        node->com[0] = cx / mass;
-        node->com[1] = cy / mass;
-        node->com[2] = cz / mass;
+        cx /= mass; cy /= mass; cz /= mass;
+        node->com[0] = cx; node->com[1] = cy; node->com[2] = cz;
+
+        double I_com[6];
+        I_com[0] = I[0] - mass * cx * cx;
+        I_com[1] = I[1] - mass * cy * cy;
+        I_com[2] = I[2] - mass * cz * cz;
+        I_com[3] = I[3] - mass * cx * cy;
+        I_com[4] = I[4] - mass * cx * cz;
+        I_com[5] = I[5] - mass * cy * cz;
+
+        double trace = I_com[0] + I_com[1] + I_com[2];
+        node->Q[0] = 3.0 * I_com[0] - trace;
+        node->Q[1] = 3.0 * I_com[1] - trace;
+        node->Q[2] = 3.0 * I_com[2] - trace;
+        node->Q[3] = 3.0 * I_com[3];
+        node->Q[4] = 3.0 * I_com[4];
+        node->Q[5] = 3.0 * I_com[5];
     }
     node->num_particles = count;
 }
 
-static void octree_insert(OctreePool *pool, int node_idx,
-                           Universe *u, index_t pidx, int depth){
+static void octree_insert(OctreePool *pool, int node_idx, Universe *u, index_t pidx, int depth){
     OctreeNode *node = &pool->nodes[node_idx];
     Particle *p = &u->particles[pidx];
 
-    // hoja vacia -> colocar particula
     if(node->num_particles == 0){
         node->particle_index = (int)pidx;
         node->num_particles = 1;
@@ -100,20 +117,52 @@ static void octree_insert(OctreePool *pool, int node_idx,
         node->com[0] = p->position.x;
         node->com[1] = p->position.y;
         node->com[2] = p->position.z;
+
+        node->I[0] = p->mass * p->position.x * p->position.x;
+        node->I[1] = p->mass * p->position.y * p->position.y;
+        node->I[2] = p->mass * p->position.z * p->position.z;
+        node->I[3] = p->mass * p->position.x * p->position.y;
+        node->I[4] = p->mass * p->position.x * p->position.z;
+        node->I[5] = p->mass * p->position.y * p->position.z;
+        for(int k=0; k<6; k++) node->Q[k] = 0.0;
         return;
     }
 
-    //hoja con una particula -> subdividir ambas
     if(node->particle_index >= 0){
         if(depth >= OCTREE_MAX_DEPTH){
             double old_m = node->total_mass;
             double new_m = old_m + p->mass;
-            node->com[0] = (node->com[0]*old_m + p->position.x*p->mass) / new_m;
-            node->com[1] = (node->com[1]*old_m + p->position.y*p->mass) / new_m;
-            node->com[2] = (node->com[2]*old_m + p->position.z*p->mass) / new_m;
+            double cx = (node->com[0]*old_m + p->position.x*p->mass) / new_m;
+            double cy = (node->com[1]*old_m + p->position.y*p->mass) / new_m;
+            double cz = (node->com[2]*old_m + p->position.z*p->mass) / new_m;
+
+            node->com[0] = cx; node->com[1] = cy; node->com[2] = cz;
             node->total_mass = new_m;
             node->num_particles++;
             node->particle_index = -1;
+
+            node->I[0] += p->mass * p->position.x * p->position.x;
+            node->I[1] += p->mass * p->position.y * p->position.y;
+            node->I[2] += p->mass * p->position.z * p->position.z;
+            node->I[3] += p->mass * p->position.x * p->position.y;
+            node->I[4] += p->mass * p->position.x * p->position.z;
+            node->I[5] += p->mass * p->position.y * p->position.z;
+
+            double I_com[6];
+            I_com[0] = node->I[0] - new_m * cx * cx;
+            I_com[1] = node->I[1] - new_m * cy * cy;
+            I_com[2] = node->I[2] - new_m * cz * cz;
+            I_com[3] = node->I[3] - new_m * cx * cy;
+            I_com[4] = node->I[4] - new_m * cx * cz;
+            I_com[5] = node->I[5] - new_m * cy * cz;
+
+            double trace = I_com[0] + I_com[1] + I_com[2];
+            node->Q[0] = 3.0 * I_com[0] - trace;
+            node->Q[1] = 3.0 * I_com[1] - trace;
+            node->Q[2] = 3.0 * I_com[2] - trace;
+            node->Q[3] = 3.0 * I_com[3];
+            node->Q[4] = 3.0 * I_com[4];
+            node->Q[5] = 3.0 * I_com[5];
             return;
         }
 

@@ -121,12 +121,22 @@ __global__ void create_nodes_kernel(const uint64_t * __restrict__ morton_sorted,
         node->com[0] = px[orig];
         node->com[1] = py[orig];
         node->com[2] = pz[orig];
+
+        node->I[0] = mass[orig] * px[orig] * px[orig];
+        node->I[1] = mass[orig] * py[orig] * py[orig];
+        node->I[2] = mass[orig] * pz[orig] * pz[orig];
+        node->I[3] = mass[orig] * px[orig] * py[orig];
+        node->I[4] = mass[orig] * px[orig] * pz[orig];
+        node->I[5] = mass[orig] * py[orig] * pz[orig];
+        for(int k=0; k<6; k++) node->Q[k] = 0.0;
     } else {
         node->particle_index = -1;
         node->total_mass = 0.0;
-        node->com[0] = 0.0;
-        node->com[1] = 0.0;
-        node->com[2] = 0.0;
+        node->com[0] = 0.0; node->com[1] = 0.0; node->com[2] = 0.0;
+        for(int k=0; k<6; k++) {
+            node->I[k] = 0.0;
+            node->Q[k] = 0.0;
+        }
     }
 }
 
@@ -158,7 +168,6 @@ __global__ void link_parents_kernel(OctreeNode * __restrict__ nodes,
         }
 }
 
-//kernel -> COM para un rango de nodos
 __global__ void compute_com_range_kernel(OctreeNode * __restrict__ nodes,
                                          int start, int count){
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -170,6 +179,7 @@ __global__ void compute_com_range_kernel(OctreeNode * __restrict__ nodes,
     if(node->num_particles <= 1) return;
 
     double total = 0.0, cx = 0.0, cy = 0.0, cz = 0.0;
+    double I[6] = {0,0,0,0,0,0};
     int has_child = 0;
     for(int c = 0; c < 8; c++){
         int child = node->children[c];
@@ -180,13 +190,32 @@ __global__ void compute_com_range_kernel(OctreeNode * __restrict__ nodes,
         cx += nodes[child].com[0] * cm;
         cy += nodes[child].com[1] * cm;
         cz += nodes[child].com[2] * cm;
+        for(int k=0; k<6; k++) I[k] += nodes[child].I[k];
     }
     if(!has_child) return;
+
     node->total_mass = total;
+    for(int k=0; k<6; k++) node->I[k] = I[k];
+
     if(total > 0.0){
-        node->com[0] = cx / total;
-        node->com[1] = cy / total;
-        node->com[2] = cz / total;
+        cx /= total; cy /= total; cz /= total;
+        node->com[0] = cx; node->com[1] = cy; node->com[2] = cz;
+
+        double I_com[6];
+        I_com[0] = I[0] - total * cx * cx;
+        I_com[1] = I[1] - total * cy * cy;
+        I_com[2] = I[2] - total * cz * cz;
+        I_com[3] = I[3] - total * cx * cy;
+        I_com[4] = I[4] - total * cx * cz;
+        I_com[5] = I[5] - total * cy * cz;
+
+        double trace = I_com[0] + I_com[1] + I_com[2];
+        node->Q[0] = 3.0 * I_com[0] - trace;
+        node->Q[1] = 3.0 * I_com[1] - trace;
+        node->Q[2] = 3.0 * I_com[2] - trace;
+        node->Q[3] = 3.0 * I_com[3];
+        node->Q[4] = 3.0 * I_com[4];
+        node->Q[5] = 3.0 * I_com[5];
     }
 }
 
@@ -199,11 +228,31 @@ __device__ void bh_acc_force(const OctreeNode *node,
     double dy = node->com[1] - py;
     double dz = node->com[2] - pz;
     double d2 = dx*dx + dy*dy + dz*dz;
-    double d = sqrt(d2 + softening*softening);
-    double s = G * node->total_mass / (d * d * d);
-    *ax += s * dx;
-    *ay += s * dy;
-    *az += s * dz;
+    double d2_soft = d2 + softening*softening;
+    double d = sqrt(d2_soft);
+    double d3 = d * d2_soft;
+    double d5 = d3 * d2_soft;
+
+    double s = G * node->total_mass / d3;
+    double aax = s * dx;
+    double aay = s * dy;
+    double aaz = s * dz;
+
+    double qdx = node->Q[0] * dx + node->Q[3] * dy + node->Q[4] * dz;
+    double qdy = node->Q[3] * dx + node->Q[1] * dy + node->Q[5] * dz;
+    double qdz = node->Q[4] * dx + node->Q[5] * dy + node->Q[2] * dz;
+    double dqd = dx * qdx + dy * qdy + dz * qdz;
+
+    double C = G / d5;
+    double K = 2.5 * dqd / d2_soft;
+
+    aax += C * (qdx - K * dx);
+    aay += C * (qdy - K * dy);
+    aaz += C * (qdz - K * dz);
+
+    *ax += aax;
+    *ay += aay;
+    *az += aaz;
 }
 
 __global__ void bh_force_kernel(const OctreeNode * __restrict__ nodes,

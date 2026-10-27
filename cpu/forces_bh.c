@@ -9,13 +9,34 @@ static void accumulate_force(Universe *u, index_t target, OctreeNode *node){
     double dy = node->com[1] - u->particles[target].position.y;
     double dz = node->com[2] - u->particles[target].position.z;
 
-    double dist2 = dx*dx + dy*dy + dz*dz;
-    double d = sqrt(dist2 + u->softening * u->softening);
-    double s = G * node->total_mass / (d * d * d);
+    double d2 = dx*dx + dy*dy + dz*dz;
+    double d2_soft = d2 + u->softening * u->softening;
+    double d = sqrt(d2_soft);
+    double d3 = d * d2_soft;
+    double d5 = d3 * d2_soft;
 
-    u->particles[target].acceleration.x += s * dx;
-    u->particles[target].acceleration.y += s * dy;
-    u->particles[target].acceleration.z += s * dz;
+    // Monopolo
+    double s = G * node->total_mass / d3;
+    double aax = s * dx;
+    double aay = s * dy;
+    double aaz = s * dz;
+
+    // Cuadrupolo
+    double qdx = node->Q[0] * dx + node->Q[3] * dy + node->Q[4] * dz;
+    double qdy = node->Q[3] * dx + node->Q[1] * dy + node->Q[5] * dz;
+    double qdz = node->Q[4] * dx + node->Q[5] * dy + node->Q[2] * dz;
+    double dqd = dx * qdx + dy * qdy + dz * qdz;
+
+    double C = G / d5;
+    double K = 2.5 * dqd / d2_soft;
+
+    aax += C * (qdx - K * dx);
+    aay += C * (qdy - K * dy);
+    aaz += C * (qdz - K * dz);
+
+    u->particles[target].acceleration.x += aax;
+    u->particles[target].acceleration.y += aay;
+    u->particles[target].acceleration.z += aaz;
 }
 
 //traversal recursivo del octree

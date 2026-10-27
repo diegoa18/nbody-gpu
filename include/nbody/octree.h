@@ -9,6 +9,8 @@ typedef struct {
     double half_width;
     double total_mass;
     double com[3];         /* centro de masa ponderado */
+    double Q[6];           /* tensor cuadrupolar sin traza: xx, yy, zz, xy, xz, yz */
+    double I[6];           /* momentos de inercia brutos (acumulacion interna) */
     int children[8];       /* indice en pool, -1 si ausente */
     int particle_index;    /* indice en universe, -1 si nodo interno */
     int num_particles;     /* particulas en este subarbol */
