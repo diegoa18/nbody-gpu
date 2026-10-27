@@ -2,6 +2,18 @@
 #include "nbody/forces.h"
 #include "nbody/constants.h"
 
+
+__device__ inline double spline_inv_d3(double d, double h) {
+    if (d >= h) return 1.0 / (d * d * d);
+    double u = d / h;
+    double h3 = h * h * h;
+    if (u < 0.5) {
+        return (10.666666666666666 - 19.2 * u * u + 32.0 * u * u * u) / h3;
+    } else {
+        return (1.0 / (u * u * u) - 10.666666666666666 + 38.4 * u - 48.0 * u * u + 21.333333333333333 * u * u * u) / h3;
+    }
+}
+
 __global__ __launch_bounds__(NBODY_BLOCK_SIZE, 2)
 void forces_kernel_tiled(double * __restrict__ px,
                                     double * __restrict__ py,
@@ -50,9 +62,9 @@ void forces_kernel_tiled(double * __restrict__ px,
             double dy = s_py[j] - my_py;
             double dz = s_pz[j] - my_pz;
 
-            double dist2 = dx * dx + dy * dy + dz * dz;
-            double d = sqrt(dist2 + SOFTENING * SOFTENING);
-            double s = G * s_mass[j] / (d * d * d);
+            double d2 = dx * dx + dy * dy + dz * dz + 1e-30;
+            double d = sqrt(d2);
+            double s = G * s_mass[j] * spline_inv_d3(d, SOFTENING);
 
             acc_x += s * dx;
             acc_y += s * dy;

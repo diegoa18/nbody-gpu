@@ -8,6 +8,17 @@
 #define MAX_LEVELS 22
 #define BH_STACK_SIZE 256
 
+__device__ inline double spline_inv_d3(double d, double h) {
+    if (d >= h) return 1.0 / (d * d * d);
+    double u = d / h;
+    double h3 = h * h * h;
+    if (u < 0.5) {
+        return (10.666666666666666 - 19.2 * u * u + 32.0 * u * u * u) / h3;
+    } else {
+        return (1.0 / (u * u * u) - 10.666666666666666 + 38.4 * u - 48.0 * u * u + 21.333333333333333 * u * u * u) / h3;
+    }
+}
+
 //identity kernel
 __global__ void identity_kernel(index_t *d_identity, index_t n){
     index_t i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -219,7 +230,6 @@ __global__ void compute_com_range_kernel(OctreeNode * __restrict__ nodes,
     }
 }
 
-//kernel -> tree-walk barnes-hut, un hilo por particula
 __device__ void bh_acc_force(const OctreeNode *node,
                              double px, double py, double pz,
                              double *ax, double *ay, double *az,
@@ -227,13 +237,12 @@ __device__ void bh_acc_force(const OctreeNode *node,
     double dx = node->com[0] - px;
     double dy = node->com[1] - py;
     double dz = node->com[2] - pz;
-    double d2 = dx*dx + dy*dy + dz*dz;
-    double d2_soft = d2 + softening*softening;
-    double d = sqrt(d2_soft);
-    double d3 = d * d2_soft;
-    double d5 = d3 * d2_soft;
+    double d2 = dx*dx + dy*dy + dz*dz + 1e-30;
+    double d = sqrt(d2);
 
-    double s = G * node->total_mass / d3;
+    double inv_d3 = spline_inv_d3(d, softening);
+    double s = G * node->total_mass * inv_d3;
+
     double aax = s * dx;
     double aay = s * dy;
     double aaz = s * dz;
@@ -243,8 +252,11 @@ __device__ void bh_acc_force(const OctreeNode *node,
     double qdz = node->Q[4] * dx + node->Q[5] * dy + node->Q[2] * dz;
     double dqd = dx * qdx + dy * qdy + dz * qdz;
 
-    double C = G / d5;
-    double K = 2.5 * dqd / d2_soft;
+    double d_eff = (d >= softening) ? d : softening;
+    double inv_d5 = inv_d3 / (d_eff * d_eff);
+
+    double C = G * inv_d5;
+    double K = 2.5 * dqd / d2;
 
     aax += C * (qdx - K * dx);
     aay += C * (qdy - K * dy);
@@ -303,12 +315,10 @@ __global__ void bh_force_kernel(const OctreeNode * __restrict__ nodes,
         double dx = node->com[0] - my_px;
         double dy = node->com[1] - my_py;
         double dz = node->com[2] - my_pz;
-        double d2 = dx*dx + dy*dy + dz*dz;
+        double d2 = dx*dx + dy*dy + dz*dz + 1e-30;
         double s = node->half_width * 2.0;
 
-        double d2_soft = d2 + softening * softening;
-
-        if(s * s < theta * theta * d2_soft + 1e-30){
+        if(s * s < theta * theta * d2){
             bh_acc_force(node, my_px, my_py, my_pz,
                          &aax, &aay, &aaz, G, softening);
             continue;

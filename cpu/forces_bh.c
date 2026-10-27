@@ -2,34 +2,43 @@
 #include "nbody/octree.h"
 #include "nbody/constants.h"
 
+// NUMEROS MAGICOS !!!!!!!!!!!!!!!!!
+static inline double spline_inv_d3(double d, double h) {
+    if (d >= h) return 1.0 / (d * d * d);
+    double u = d / h;
+    double h3 = h * h * h;
+    if (u < 0.5) {
+        return (10.666666666666666 - 19.2 * u * u + 32.0 * u * u * u) / h3;
+    } else {
+        return (1.0 / (u * u * u) - 10.666666666666666 + 38.4 * u - 48.0 * u * u + 21.333333333333333 * u * u * u) / h3;
+    }
+}
 
-//fuerza gravitacional acumulada de un nodo sobre una particula target
 static void accumulate_force(Universe *u, index_t target, OctreeNode *node){
     double dx = node->com[0] - u->particles[target].position.x;
     double dy = node->com[1] - u->particles[target].position.y;
     double dz = node->com[2] - u->particles[target].position.z;
 
-    double d2 = dx*dx + dy*dy + dz*dz;
-    double d2_soft = d2 + u->softening * u->softening;
-    double d = sqrt(d2_soft);
-    double d3 = d * d2_soft;
-    double d5 = d3 * d2_soft;
+    double d2 = dx*dx + dy*dy + dz*dz + 1e-30;
+    double d = sqrt(d2);
 
-    // Monopolo
-    double s = G * node->total_mass / d3;
+    double inv_d3 = spline_inv_d3(d, u->softening);
+    double s = G * node->total_mass * inv_d3;
+
     double aax = s * dx;
     double aay = s * dy;
     double aaz = s * dz;
 
-    // Cuadrupolo
     double qdx = node->Q[0] * dx + node->Q[3] * dy + node->Q[4] * dz;
     double qdy = node->Q[3] * dx + node->Q[1] * dy + node->Q[5] * dz;
     double qdz = node->Q[4] * dx + node->Q[5] * dy + node->Q[2] * dz;
     double dqd = dx * qdx + dy * qdy + dz * qdz;
 
-    double C = G / d5;
-    double K = 2.5 * dqd / d2_soft;
+    double d_eff = (d >= u->softening) ? d : u->softening;
+    double inv_d5 = inv_d3 / (d_eff * d_eff);
 
+    double C = G * inv_d5;
+    double K = 2.5 * dqd / d2;
     aax += C * (qdx - K * dx);
     aay += C * (qdy - K * dy);
     aaz += C * (qdz - K * dz);
@@ -39,7 +48,6 @@ static void accumulate_force(Universe *u, index_t target, OctreeNode *node){
     u->particles[target].acceleration.z += aaz;
 }
 
-//traversal recursivo del octree
 static void tree_walk(OctreePool *pool, int node_idx,
                        Universe *u, index_t target){
     OctreeNode *node = &pool->nodes[node_idx];
@@ -65,11 +73,11 @@ static void tree_walk(OctreePool *pool, int node_idx,
     double dx = node->com[0] - u->particles[target].position.x;
     double dy = node->com[1] - u->particles[target].position.y;
     double dz = node->com[2] - u->particles[target].position.z;
-    double dist2 = dx*dx + dy*dy + dz*dz;
-    double d = sqrt(dist2 + u->softening * u->softening);
+
+    double dist2 = dx*dx + dy*dy + dz*dz + 1e-30;
     double s = node->half_width * 2.0;
 
-    if(s / d < u->theta){
+    if(s * s < u->theta * u->theta * dist2){
         accumulate_force(u, target, node);
         return;
     }
