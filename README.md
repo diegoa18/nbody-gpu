@@ -52,7 +52,12 @@ At N=100,000 the headline result is a 19.09x speedup over GPU direct summation w
 
 ## Physical Conservation Validation
 
-The flagship `plummer_merger` preset was run on the RTX 2050 with N=20,000, θ=0.7, traceless-quadrupole Barnes-Hut forces, and Yoshida 4th-order integration for 16,000 steps (four crossing times; final time 1.487900e+14 s). The telemetry is written by `--diagnostics` and summarized in `renders/merger_showcase/conservation_summary.txt`.
+The flagship `plummer_merger` preset was run on the RTX 2050 with N=20,000, θ=0.7, traceless-quadrupole Barnes-Hut forces, and Yoshida 4th-order integration for 16,000 steps (four crossing times; final time 1.487900e+14 s). The telemetry is written by `--diagnostics` and summarized in `renders/merger_showcase/conservation_summary.txt`. The four GPU-rendered phases are:
+
+| &nbsp; | &nbsp; |
+| :---: | :---: |
+| ![Step 0: Initial COM State](assets/phase_initial.png)<br>**Step 0:** Initial COM State | ![Step 5600: Pericenter & Tidal Compression](assets/phase_pericenter.png)<br>**Step 5600:** Pericenter & Tidal Compression |
+| ![Step 12800: Post-Encounter Separation](assets/phase_post_merger.png)<br>**Step 12800:** Post-Encounter Separation | ![Step 16000: Final State](assets/phase_final.png)<br>**Step 16000:** Final State |
 
 | Quantity | Peak | Final |
 | --- | ---: | ---: |
