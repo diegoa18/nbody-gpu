@@ -16,3 +16,14 @@ cmake-build-*/
 .cache/
 *.ppm
 renders/
+
+# snapshots binarios crudos y telemetria temporal
+*.nb
+*.nbds
+*.csv
+
+# assets curados del showcase (opcional)
+!assets/
+!assets/**/*.png
+!assets/**/*.ppm
+!assets/**/*.csv
