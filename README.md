@@ -62,7 +62,9 @@ The flagship `plummer_merger` preset was run on the RTX 2050 with N=20,000, θ=0
 | rel_dL | 7.180613e-03 (0.718%) | 6.698830e-03 (0.670%) |
 | \|P\| (kg m/s) | 1.751097e+35 | 1.751097e+35 |
 
-Energy starts at E₀ = -1.434487e+41 J and ends at E_f = -1.450213e+41 J, a fractional drift of +1.096294%. The peak drift reaches 1.801043e-02 near pericenter; as the encounter remnant relaxes, the symplectic drift envelope contracts to 1.096294e-02. Angular momentum stays below 7.180613e-03 (0.72%) throughout, ending at 6.698830e-03.
+Energy starts at E₀ = -1.434487e+41 J and ends at E_f = -1.450213e+41 J, a fractional drift of +1.096294%. The peak drift reaches 1.801043e-02 near pericenter; as the pair separates after the encounter, the symplectic drift envelope contracts to 1.096294e-02. Angular momentum stays below 7.180613e-03 (0.72%) throughout, ending at 6.698830e-03.
+
+The rendered sequence for this run is a parabolic flyby rather than a bound remnant: the two clusters overlap at pericenter and re-separate by the late phase. The `phase_post_merger.png` filename denotes the late post-encounter phase of the merger preset; the conservation envelope above describes that encounter.
 
 The initial center-of-mass residuals are |Σm r| / Σ(m|r|) = 2.413e-17 and |Σm v| / Σ(m|v|) = 1.748e-17. The final |P| is 1.751097e+35 kg m/s. These are measured envelopes for this production run, not analytic guarantees; they are recorded so that changes to the tree, softening, or integrator are immediately visible.
 
@@ -95,7 +97,7 @@ Generate the complete merger showcase:
 ./scripts/run_merger_showcase.sh
 ```
 
-The script builds Release, runs the N=20,000 GPU merger with θ=0.7, records `diagnostics.csv`, renders the initial, pericenter, late/post-merger, and final phases, runs `benchmark_bh`, writes `conservation_summary.txt`, and removes the raw `.nb` snapshots. Outputs land in `renders/merger_showcase/`. Use `NBODY_BACKEND=cpu` for a CPU-only run, or `N`, `THETA`, `T_END`, and `DT` to override the physical configuration.
+The script builds Release, runs the N=20,000 GPU encounter with θ=0.7, records `diagnostics.csv`, renders the initial, pericenter, late post-encounter, and final phases, runs `benchmark_bh`, writes `conservation_summary.txt`, and removes the raw `.nb` snapshots. Outputs land in `renders/merger_showcase/`. Use `NBODY_BACKEND=cpu` for a CPU-only run, or `N`, `THETA`, `T_END`, and `DT` to override the physical configuration.
 
 ## Roadmap & Next Steps
 
