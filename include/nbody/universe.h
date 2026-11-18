@@ -22,6 +22,9 @@ struct Universe{
 Universe *universe_create(index_t n);
 void universe_destroy(Universe *u);
 
+Vec3 universe_total_momentum(const Universe *u);
+Vec3 universe_total_angular_momentum(const Universe *u);
+
 #ifdef __cplusplus
 }
 #endif

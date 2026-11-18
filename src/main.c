@@ -22,6 +22,8 @@ static void print_usage(const char *prog){
     printf("  --time <valor>                      tiempo total en segundos (default: 1 year)\n");
     printf("  --dump <dir>                        escribe snapshots en <dir> (default: off)\n");
     printf("  --snapshot-every <k>                un snapshot cada k pasos (default: 100)\n");
+    printf("  --diagnostics <archivo>             CSV de E, L y P (default: off)\n");
+    printf("  --diagnostics-every <k>             fila de diagnostico cada k pasos (default: snapshot-every)\n");
     printf("  --energy                            reporte de energia aunque n sea grande (default: off)\n");
 }
 
@@ -87,6 +89,8 @@ int main(int argc, char **argv){
     double total_time = 365.25 * 24.0 * 3600.0;
     const char *dump_dir = NULL;
     index_t snapshot_every = 100;
+    const char *diagnostics_path = NULL;
+    index_t diagnostics_every = 0;
     int energy_report = 0;
 
     for(int i = 1; i < argc; i++){
@@ -112,6 +116,16 @@ int main(int argc, char **argv){
             dump_dir = argv[++i];
         else if(strcmp(argv[i], "--snapshot-every") == 0 && i + 1 < argc)
             snapshot_every = (index_t)atol(argv[++i]);
+        else if(strcmp(argv[i], "--diagnostics") == 0 && i + 1 < argc)
+            diagnostics_path = argv[++i];
+        else if(strcmp(argv[i], "--diagnostics-every") == 0 && i + 1 < argc){
+            long value = atol(argv[++i]);
+            if(value <= 0){
+                fprintf(stderr, "error: --diagnostics-every requiere un entero positivo\n");
+                return 1;
+            }
+            diagnostics_every = (index_t)value;
+        }
         else if(strcmp(argv[i], "--energy") == 0)
             energy_report = 1;
         else{
@@ -211,6 +225,24 @@ int main(int argc, char **argv){
         }
         printf("snapshots: %s (cada %lu pasos)\n",
                dump_dir, (unsigned long)snapshot_every);
+    }
+
+    if(diagnostics_path){
+        index_t every = diagnostics_every;
+        if(every == 0)
+            every = snapshot_every > 0 ? snapshot_every : 100;
+        if(simulation_set_diagnostics(s, diagnostics_path, every) != 0){
+            fprintf(stderr, "error: no se pudo abrir diagnostics '%s'\n",
+                    diagnostics_path);
+            simulation_destroy(s);
+            return 1;
+        }
+        printf("diagnostics: %s (cada %lu pasos)\n",
+               diagnostics_path, (unsigned long)every);
+        if(n > ENERGY_REPORT_MAX_N)
+            fprintf(stderr,
+                    "aviso: diagnostics calcula energia O(N^2) cada %lu pasos; n=%lu puede ser lento\n",
+                    (unsigned long)every, (unsigned long)n);
     }
 
     real e0 = 0.0;
