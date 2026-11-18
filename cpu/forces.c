@@ -2,6 +2,9 @@
 #include "nbody/integrator.h"
 #include "nbody/constants.h"
 #include <math.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 // ALERTA DE NUMEROS MAGICOS!!!!!!!!!!!!!!!!
 static inline double spline_inv_d3(double d, double h) {
@@ -16,6 +19,7 @@ static inline double spline_inv_d3(double d, double h) {
 }
 
 void forces_compute(Universe *u){
+    #pragma omp parallel for schedule(static)
     for(index_t i = 0; i < u->n; i++){
         particle_reset_acceleration(&u->particles[i]);
 

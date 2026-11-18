@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(nbody LANGUAGES C CUDA)
 
+find_package(OpenMP)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CUDA_STANDARD 17)
 add_compile_options(-Wall -Wextra -O3 -march=native)
@@ -36,6 +38,9 @@ set(VALIDATION_SOURCES
 
 add_library(nbody_common OBJECT ${COMMON_SOURCES})
 target_include_directories(nbody_common PUBLIC include)
+if(OpenMP_C_FOUND)
+    target_link_libraries(nbody_common PUBLIC OpenMP::OpenMP_C)
+endif()
 
 add_library(nbody_sim_cpu OBJECT src/simulation.c)
 target_include_directories(nbody_sim_cpu PUBLIC include)
@@ -115,6 +120,15 @@ add_executable(test_render tests/test_render.c tools/render.c
     cpu/forces.c)
 target_include_directories(test_render PRIVATE include tools)
 target_link_libraries(test_render PRIVATE m)
+
+# cpu/forces_bh.c vive en nbody_common y se compila con OpenMP: todos los
+# ejecutables que consumen esos objetos deben enlazar el runtime de OpenMP.
+if(OpenMP_C_FOUND)
+    foreach(tgt nbody nbody_gpu benchmark_cpu benchmark_gpu benchmark_bh
+                test_cpu test_gpu test_bh_gpu test_large_n nbody_render test_render)
+        target_link_libraries(${tgt} PRIVATE OpenMP::OpenMP_C)
+    endforeach()
+endif()
 
 enable_testing()
 add_test(NAME test_cpu COMMAND test_cpu)
