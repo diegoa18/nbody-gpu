@@ -1,6 +1,9 @@
 #include "nbody/forces.h"
 #include "nbody/octree.h"
 #include "nbody/constants.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 // NUMEROS MAGICOS !!!!!!!!!!!!!!!!!
 static inline double spline_inv_d3(double d, double h) {
@@ -107,6 +110,7 @@ void forces_compute_bh(Universe *u){
     }
 
     // calcular fuerzas para cada particula
+    #pragma omp parallel for schedule(dynamic, 64)
     for(index_t i = 0; i < n; i++)
         tree_walk(&pool, root, u, i);
 
