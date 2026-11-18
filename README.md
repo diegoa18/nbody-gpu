@@ -2,8 +2,6 @@
 
 This project is a high-performance, GPU-accelerated astrophysical N-body simulator written in C11 and CUDA. It is designed as a rigorous scientific engine to model gravitational dynamics—from planetary systems to stellar clusters—focusing strictly on the intersection of theoretical physics and computational optimization.
 
-**v1.0.0** brings OpenMP host parallelization, GPU and multi-core CPU Barnes-Hut solvers, conservation telemetry, and a reproducible Plummer cluster merger showcase.
-
 ## Mathematical & Physical Models
 
 ### 1. Yoshida 4th-Order Symplectic Integration
@@ -98,8 +96,3 @@ Generate the complete merger showcase:
 ```
 
 The script builds Release, runs the N=20,000 GPU encounter with θ=0.7, records `diagnostics.csv`, renders the initial, pericenter, late post-encounter, and final phases, runs `benchmark_bh`, writes `conservation_summary.txt`, and removes the raw `.nb` snapshots. Outputs land in `renders/merger_showcase/`. Use `NBODY_BACKEND=cpu` for a CPU-only run, or `N`, `THETA`, `T_END`, and `DT` to override the physical configuration.
-
-## Roadmap & Next Steps
-
-1. **Multi-GPU Scaling (MPI):** Distributing the spatial domain using Local Essential Trees across multiple discrete GPUs for cluster-level execution.
-2. **Inelastic Collisions:** Implementing physically accurate merger mechanics when the physical distance between two bodies drops below the sum of their radii, perfectly conserving linear momentum.
