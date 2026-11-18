@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 #include <sys/stat.h>
 
 /* umbral de n para el reporte de energia (la energia potencial es O(N^2)) */
@@ -12,7 +13,7 @@
 
 static void print_usage(const char *prog){
     printf("uso: %s [opciones]\n", prog);
-    printf("  --preset <sun_earth|plummer|random>  configuracion inicial (default: sun_earth)\n");
+    printf("  --preset <sun_earth|plummer|random|plummer_merger>  configuracion inicial (default: sun_earth)\n");
     printf("  --n <numero>                        particulas (default: 2)\n");
     printf("  --algorithm <direct|bh>             algoritmo de fuerzas (default: auto)\n");
     printf("  --theta <valor>                     angulo BH (default: 0.7)\n");
@@ -27,6 +28,50 @@ static void print_usage(const char *prog){
 static int ensure_dir(const char *path){
     if(mkdir(path, 0755) != 0 && errno != EEXIST){
         fprintf(stderr, "error: no se pudo crear el directorio '%s'\n", path);
+        return 1;
+    }
+    return 0;
+}
+
+/* Verifica que el preset del merger quede en reposo del centro de masa.
+ * Los residuales se normalizan por sum(m|r|) y sum(m|v|), con las mismas
+ * unidades que los numeradores, de modo que son adimensionales. */
+static int check_com_rest_frame(const Universe *u){
+    long double total_mass = 0.0L;
+    long double sx = 0.0L, sy = 0.0L, sz = 0.0L;
+    long double px = 0.0L, py = 0.0L, pz = 0.0L;
+    long double r_scale = 0.0L, v_scale = 0.0L;
+
+    for(index_t i = 0; i < u->n; i++){
+        long double m = (long double)u->particles[i].mass;
+        long double x = (long double)u->particles[i].position.x;
+        long double y = (long double)u->particles[i].position.y;
+        long double z = (long double)u->particles[i].position.z;
+        long double vx = (long double)u->particles[i].velocity.x;
+        long double vy = (long double)u->particles[i].velocity.y;
+        long double vz = (long double)u->particles[i].velocity.z;
+
+        total_mass += m;
+        sx += m * x; sy += m * y; sz += m * z;
+        px += m * vx; py += m * vy; pz += m * vz;
+        r_scale += m * sqrtl(x * x + y * y + z * z);
+        v_scale += m * sqrtl(vx * vx + vy * vy + vz * vz);
+    }
+
+    if(total_mass == 0.0L){
+        fprintf(stderr, "error: COM check con masa total nula\n");
+        return 1;
+    }
+
+    long double com_res = (r_scale > 0.0L)
+        ? sqrtl(sx * sx + sy * sy + sz * sz) / r_scale : 0.0L;
+    long double mom_res = (v_scale > 0.0L)
+        ? sqrtl(px * px + py * py + pz * pz) / v_scale : 0.0L;
+
+    printf("COM check: |sum m r|/sum(m|r|) = %.3Le, |sum m v|/sum(m|v|) = %.3Le\n",
+           com_res, mom_res);
+    if(com_res > 1e-10L || mom_res > 1e-10L){
+        fprintf(stderr, "error: el preset no quedo en reposo del centro de masa\n");
         return 1;
     }
     return 0;
@@ -117,10 +162,25 @@ int main(int argc, char **argv){
         setup_plummer(s->universe, n);
     else if(strcmp(preset_name, "random") == 0)
         setup_random_cloud(s->universe, n);
+    else if(strcmp(preset_name, "plummer_merger") == 0){
+        if(n < 2){
+            fprintf(stderr, "error: plummer_merger requiere n >= 2\n");
+            simulation_destroy(s);
+            return 1;
+        }
+        setup_plummer_merger(s->universe, n);
+    }
     else{
         fprintf(stderr, "error: preset desconocido '%s'\n", preset_name);
         simulation_destroy(s);
         return 1;
+    }
+
+    if(strcmp(preset_name, "plummer_merger") == 0){
+        if(check_com_rest_frame(s->universe) != 0){
+            simulation_destroy(s);
+            return 1;
+        }
     }
 
     if(algo_name){

@@ -9,6 +9,7 @@ extern "C" {
 
 void setup_sun_earth(Universe *u);
 void setup_plummer(Universe *u, index_t n);
+void setup_plummer_merger(Universe *u, index_t n);
 void setup_random_cloud(Universe *u, index_t n);
 
 #ifdef __cplusplus
