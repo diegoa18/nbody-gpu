@@ -124,6 +124,9 @@ void simulation_run(Simulation *s){
         }
     }
 #else
+    /* el integrador asume que a_old ya esta evaluada */
+    if(s->current_time < s->total_time)
+        s->universe->force_func(s->universe);
     index_t step = 0;
     while(s->current_time < s->total_time){
         simulation_step(s);

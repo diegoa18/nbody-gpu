@@ -36,6 +36,9 @@ void forces_compute(Universe *u){
 }
 
 int forces_integrate(Universe *u, real dt, index_t steps){
+    if(steps == 0) return 0;
+    /* el integrador asume que a_old ya esta evaluada */
+    u->force_func(u);
     for(index_t i = 0; i < steps; i++){
         if(integrator_step_verlet(u, dt, u->force_func)) return 1;
     }
